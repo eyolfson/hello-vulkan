@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.1.3)
 
-project(IRC_CLIENT C)
+project(HELLO_VULKAN C)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
