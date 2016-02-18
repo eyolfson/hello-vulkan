@@ -23,3 +23,6 @@ add_compile_options(-Wextra)
 add_executable(hello-vulkan
 	main.c
 )
+target_link_libraries(hello-vulkan
+	vulkan
+)
