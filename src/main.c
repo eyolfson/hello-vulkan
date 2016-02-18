@@ -17,11 +17,27 @@
 
 #include <vulkan/vulkan.h>
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+#endif
+
 int main(int argc, char **argv)
 {
-	VkInstanceCreateInfo info;
-	VkAllocationCallbacks callbacks;
+	const char *enabled_extension_names[] = {
+		"VK_KHR_surface",
+		"VK_KHR_wayland_surface",
+	};
+	VkInstanceCreateInfo instance_create_info = {
+		.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+		.pApplicationInfo = NULL,
+		.enabledLayerCount = 0,
+		.ppEnabledLayerNames = NULL,
+		.enabledExtensionCount = ARRAY_SIZE(enabled_extension_names),
+		.ppEnabledExtensionNames = enabled_extension_names,
+	};
 	VkInstance instance;
-	vkCreateInstance(&info, &callbacks, &instance);
+	vkCreateInstance(&instance_create_info, NULL, &instance);
 	return 0;
 }
