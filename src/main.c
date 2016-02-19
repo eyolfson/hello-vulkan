@@ -21,6 +21,24 @@
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 #endif
 
+#include <stdio.h>
+
+int use_instance(VkInstance instance)
+{
+	uint32_t physical_device_count;
+	VkPhysicalDevice physical_devices;
+	VkResult result;
+	result = vkEnumeratePhysicalDevices(
+		instance,
+		&physical_device_count,
+		&physical_devices
+	);
+	if (result != VK_SUCCESS) {
+		return 1;
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	const char *enabled_extension_names[] = {
@@ -38,6 +56,14 @@ int main(int argc, char **argv)
 		.ppEnabledExtensionNames = enabled_extension_names,
 	};
 	VkInstance instance;
-	vkCreateInstance(&instance_create_info, NULL, &instance);
-	return 0;
+	VkResult result;
+	result = vkCreateInstance(&instance_create_info, NULL, &instance);
+	if (result != VK_SUCCESS) {
+		return 1;
+	}
+
+	int ret = use_instance(instance);
+
+	vkDestroyInstance(instance, NULL);
+	return ret;
 }
