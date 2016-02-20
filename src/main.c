@@ -22,6 +22,46 @@
 #endif
 
 #include <stdio.h>
+#include <string.h>
+
+int print_result(VkResult result)
+{
+	const int error_ret = 2;
+	const char *msg;
+#define PRINT_RESULT_CASE(x) \
+case x: \
+	msg = #x "\n"; \
+	return (size_t) printf(msg) == strlen(msg) ? 0 : error_ret;
+
+	switch (result) {
+	PRINT_RESULT_CASE(VK_ERROR_VALIDATION_FAILED_EXT)
+	PRINT_RESULT_CASE(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR)
+	PRINT_RESULT_CASE(VK_ERROR_INCOMPATIBLE_DISPLAY_KHR)
+	PRINT_RESULT_CASE(VK_ERROR_OUT_OF_DATE_KHR)
+	PRINT_RESULT_CASE(VK_ERROR_SURFACE_LOST_KHR)
+	PRINT_RESULT_CASE(VK_ERROR_FORMAT_NOT_SUPPORTED)
+	PRINT_RESULT_CASE(VK_ERROR_TOO_MANY_OBJECTS)
+	PRINT_RESULT_CASE(VK_ERROR_INCOMPATIBLE_DRIVER)
+	PRINT_RESULT_CASE(VK_ERROR_LAYER_NOT_PRESENT)
+	PRINT_RESULT_CASE(VK_ERROR_FEATURE_NOT_PRESENT)
+	PRINT_RESULT_CASE(VK_ERROR_EXTENSION_NOT_PRESENT)
+	PRINT_RESULT_CASE(VK_ERROR_DEVICE_LOST)
+	PRINT_RESULT_CASE(VK_ERROR_MEMORY_MAP_FAILED)
+	PRINT_RESULT_CASE(VK_ERROR_INITIALIZATION_FAILED)
+	PRINT_RESULT_CASE(VK_ERROR_OUT_OF_DEVICE_MEMORY)
+	PRINT_RESULT_CASE(VK_ERROR_OUT_OF_HOST_MEMORY)
+	PRINT_RESULT_CASE(VK_SUCCESS)
+	PRINT_RESULT_CASE(VK_NOT_READY)
+	PRINT_RESULT_CASE(VK_TIMEOUT)
+	PRINT_RESULT_CASE(VK_EVENT_SET)
+	PRINT_RESULT_CASE(VK_EVENT_RESET)
+	PRINT_RESULT_CASE(VK_INCOMPLETE)
+	PRINT_RESULT_CASE(VK_SUBOPTIMAL_KHR)
+#undef PRINT_RESULT_CASE
+	default:
+		return error_ret;
+	}
+}
 
 int use_instance(VkInstance instance)
 {
@@ -34,7 +74,9 @@ int use_instance(VkInstance instance)
 		&physical_devices
 	);
 	if (result != VK_SUCCESS) {
-		return 1;
+		int ret = 1;
+		ret |= print_result(result);
+		return ret;
 	}
 	return 0;
 }
@@ -59,7 +101,9 @@ int main(int argc, char **argv)
 	VkResult result;
 	result = vkCreateInstance(&instance_create_info, NULL, &instance);
 	if (result != VK_SUCCESS) {
-		return 1;
+		int ret = 1;
+		ret |= print_result(result);
+		return ret;
 	}
 
 	int ret = use_instance(instance);
