@@ -22,6 +22,7 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int print_result(VkResult result)
@@ -66,18 +67,36 @@ case x: \
 int use_instance(VkInstance instance)
 {
 	uint32_t physical_device_count;
-	VkPhysicalDevice physical_devices;
 	VkResult result;
 	result = vkEnumeratePhysicalDevices(
 		instance,
 		&physical_device_count,
-		&physical_devices
+		NULL
 	);
 	if (result != VK_SUCCESS) {
 		int ret = 1;
 		ret |= print_result(result);
 		return ret;
 	}
+	VkPhysicalDevice *physical_devices = malloc(
+		physical_device_count * sizeof(VkPhysicalDevice)
+	);
+	if (physical_devices == NULL) {
+		return 4;
+	}
+	result = vkEnumeratePhysicalDevices(
+		instance,
+		&physical_device_count,
+		physical_devices
+	);
+	if (result != VK_SUCCESS) {
+		free(physical_devices);
+		int ret = 1;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	free(physical_devices);
 	return 0;
 }
 
