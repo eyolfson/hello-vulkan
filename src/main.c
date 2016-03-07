@@ -32,7 +32,7 @@ int print_result(VkResult result)
 #define PRINT_RESULT_CASE(x) \
 case x: \
 	msg = #x "\n"; \
-	return (size_t) printf(msg) == strlen(msg) ? 0 : error_ret;
+	return (size_t) printf("%s", msg) == strlen(msg) ? 0 : error_ret;
 
 	switch (result) {
 	PRINT_RESULT_CASE(VK_ERROR_VALIDATION_FAILED_EXT)
