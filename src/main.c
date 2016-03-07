@@ -64,6 +64,19 @@ case x: \
 	}
 }
 
+int use_physical_devices(VkPhysicalDevice *physical_devices, uint32_t physical_device_count)
+{
+	printf("Found %u Physical Devices\n", physical_device_count);
+
+	VkPhysicalDeviceProperties properties;
+	for (uint32_t i = 0; i != physical_device_count; ++i) {
+		vkGetPhysicalDeviceProperties(physical_devices[i], &properties);
+		printf("%u: %s\n", i, properties.deviceName);
+	}
+
+	return 0;
+}
+
 int use_instance(VkInstance instance)
 {
 	uint32_t physical_device_count;
@@ -95,6 +108,8 @@ int use_instance(VkInstance instance)
 		ret |= print_result(result);
 		return ret;
 	}
+
+	use_physical_devices(physical_devices, physical_device_count);
 
 	free(physical_devices);
 	return 0;
