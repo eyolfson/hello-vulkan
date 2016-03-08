@@ -64,7 +64,9 @@ case x: \
 	}
 }
 
-int use_physical_devices(VkPhysicalDevice *physical_devices, uint32_t physical_device_count)
+int use_physical_devices(
+	VkPhysicalDevice *physical_devices,
+	uint32_t physical_device_count)
 {
 	printf("Found %u Physical Devices\n", physical_device_count);
 
@@ -72,6 +74,10 @@ int use_physical_devices(VkPhysicalDevice *physical_devices, uint32_t physical_d
 	for (uint32_t i = 0; i != physical_device_count; ++i) {
 		vkGetPhysicalDeviceProperties(physical_devices[i], &properties);
 		printf("%u: %s\n", i, properties.deviceName);
+	}
+
+	if (physical_device_count != 1) {
+		return 1;
 	}
 
 	return 0;
