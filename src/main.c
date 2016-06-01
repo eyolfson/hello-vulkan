@@ -25,14 +25,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+static const int LIBC_ERROR_BIT = 1 << 0;
+static const int VULKAN_ERROR_BIT = 1 << 1;
+static const int APP_ERROR_BIT = 1 << 2;
+
 int print_result(VkResult result)
 {
-	const int error_ret = 2;
 	const char *msg;
 #define PRINT_RESULT_CASE(x) \
 case x: \
 	msg = #x "\n"; \
-	return (size_t) printf("%s", msg) == strlen(msg) ? 0 : error_ret;
+	return (size_t) printf("%s", msg) == strlen(msg) ? 0 : LIBC_ERROR_BIT;
 
 	switch (result) {
 	PRINT_RESULT_CASE(VK_ERROR_VALIDATION_FAILED_EXT)
@@ -60,13 +63,12 @@ case x: \
 	PRINT_RESULT_CASE(VK_SUBOPTIMAL_KHR)
 #undef PRINT_RESULT_CASE
 	default:
-		return error_ret;
+		return APP_ERROR_BIT;
 	}
 }
 
-int use_physical_devices(
-	VkPhysicalDevice *physical_devices,
-	uint32_t physical_device_count)
+int use_physical_devices(VkPhysicalDevice *physical_devices,
+                         uint32_t physical_device_count)
 {
 	printf("Found %u Physical Devices\n", physical_device_count);
 
@@ -77,7 +79,7 @@ int use_physical_devices(
 	}
 
 	if (physical_device_count != 1) {
-		return 1;
+		return APP_ERROR_BIT;
 	}
 
 	return 0;
@@ -93,7 +95,7 @@ int use_instance(VkInstance instance)
 		NULL
 	);
 	if (result != VK_SUCCESS) {
-		int ret = 1;
+		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
 	}
@@ -101,7 +103,7 @@ int use_instance(VkInstance instance)
 		physical_device_count * sizeof(VkPhysicalDevice)
 	);
 	if (physical_devices == NULL) {
-		return 4;
+		return LIBC_ERROR_BIT;
 	}
 	result = vkEnumeratePhysicalDevices(
 		instance,
@@ -110,7 +112,7 @@ int use_instance(VkInstance instance)
 	);
 	if (result != VK_SUCCESS) {
 		free(physical_devices);
-		int ret = 1;
+		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
 	}
@@ -141,7 +143,7 @@ int main(int argc, char **argv)
 	VkResult result;
 	result = vkCreateInstance(&instance_create_info, NULL, &instance);
 	if (result != VK_SUCCESS) {
-		int ret = 1;
+		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
 	}
