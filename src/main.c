@@ -66,6 +66,17 @@ case x: \
 	}
 }
 
+int use_physical_device(VkPhysicalDevice physical_device)
+{
+	{
+		VkPhysicalDeviceProperties properties;
+		vkGetPhysicalDeviceProperties(physical_device, &properties);
+		printf("Using 0: %s\n", properties.deviceName);
+	}
+
+	return 0;
+}
+
 int use_physical_devices(VkPhysicalDevice *physical_devices,
                          uint32_t physical_device_count)
 {
@@ -77,9 +88,11 @@ int use_physical_devices(VkPhysicalDevice *physical_devices,
 		printf("%u: %s\n", i, properties.deviceName);
 	}
 
-	if (physical_device_count != 1) {
+	if (physical_device_count == 0) {
 		return APP_ERROR_BIT;
 	}
+
+	use_physical_device(physical_devices[0]);
 
 	return 0;
 }
