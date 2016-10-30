@@ -66,6 +66,11 @@ case x: \
 	}
 }
 
+int use_device(VkDevice device)
+{
+	return 0;
+}
+
 int use_physical_device(VkPhysicalDevice physical_device)
 {
 	{
@@ -74,6 +79,23 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		printf("Using 0: %s\n", properties.deviceName);
 	}
 
+	VkDeviceCreateInfo device_create_info = {
+		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+	};
+	VkResult result;
+	VkDevice device;
+	result = vkCreateDevice(physical_device, &device_create_info, NULL, &device);
+	if (result != VK_SUCCESS) {
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	use_device(device);
+
+	vkDestroyDevice(device, NULL);
 	return 0;
 }
 
