@@ -73,16 +73,42 @@ int use_device(VkDevice device)
 
 int use_physical_device(VkPhysicalDevice physical_device)
 {
-	{
-		VkPhysicalDeviceProperties properties;
-		vkGetPhysicalDeviceProperties(physical_device, &properties);
-		printf("Using 0: %s\n", properties.deviceName);
+	/* Physical Device Queue Family Properties */
+	uint32_t queue_family_property_count;
+	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
+	                                         &queue_family_property_count,
+	                                         NULL);
+	VkQueueFamilyProperties *queue_family_properties = malloc(
+		queue_family_property_count * sizeof(VkQueueFamilyProperties)
+	);
+	if (queue_family_properties == NULL) {
+		return LIBC_ERROR_BIT;
 	}
+	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
+	                                         &queue_family_property_count,
+	                                         queue_family_properties);
+	if (queue_family_property_count != 1) {
+		/* Assumption: there is only one queue family */
+		return APP_ERROR_BIT;
+	}
+	free(queue_family_properties);
+
+	const float queue_priorities[1] = {1.0f};
+	VkDeviceQueueCreateInfo device_queue_create_info = {
+		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+		.queueFamilyIndex = 0, /* Assumption: there is only one queue family */
+		.queueCount = 1,
+		.pQueuePriorities = queue_priorities,
+	};
 
 	VkDeviceCreateInfo device_create_info = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
+		.queueCreateInfoCount = 1,
+		.pQueueCreateInfos = &device_queue_create_info,
 	};
 	VkResult result;
 	VkDevice device;
@@ -102,16 +128,26 @@ int use_physical_device(VkPhysicalDevice physical_device)
 int use_physical_devices(VkPhysicalDevice *physical_devices,
                          uint32_t physical_device_count)
 {
-	printf("Found %u Physical Devices\n", physical_device_count);
+	printf("Found %u Physical Device", physical_device_count);
+	if (physical_device_count > 1) {
+		printf("s");
+	}
+	printf("\n");
 
 	VkPhysicalDeviceProperties properties;
 	for (uint32_t i = 0; i != physical_device_count; ++i) {
 		vkGetPhysicalDeviceProperties(physical_devices[i], &properties);
-		printf("%u: %s\n", i, properties.deviceName);
+		printf("  %u: %s\n", i, properties.deviceName);
 	}
 
 	if (physical_device_count == 0) {
 		return APP_ERROR_BIT;
+	}
+
+	{
+		VkPhysicalDeviceProperties properties;
+		vkGetPhysicalDeviceProperties(physical_devices[0], &properties);
+		printf("Using 0: %s\n", properties.deviceName);
 	}
 
 	use_physical_device(physical_devices[0]);
