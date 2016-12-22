@@ -317,6 +317,8 @@ static void wl_registry_global(void *data,
                                const char *interface,
                                uint32_t version)
 {
+	(void) data;
+
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		wayland.compositor = wl_registry_bind(
 			wl_registry, name, &wl_compositor_interface, version);
@@ -431,6 +433,9 @@ static void wayland_fini()
 
 int main(int argc, char **argv)
 {
+	(void) argc;
+	(void) argv;
+
 	int ret = wayland_init();
 	if (ret != 0) {
 		return ret;
