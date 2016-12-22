@@ -459,6 +459,7 @@ int main(int argc, char **argv)
 	VkResult result;
 	result = vkCreateInstance(&instance_create_info, NULL, &instance);
 	if (result != VK_SUCCESS) {
+		wayland_fini();
 		ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
