@@ -24,6 +24,7 @@
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 #endif
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -136,6 +137,45 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		.pQueuePriorities = queue_priorities,
 	};
 
+	VkResult result;
+	uint32_t extension_property_count;
+	result = vkEnumerateDeviceExtensionProperties(physical_device,
+	                                              NULL,
+	                                              &extension_property_count,
+	                                              NULL);
+	if (result != VK_SUCCESS) {
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+	VkExtensionProperties *extension_properties = malloc(
+		extension_property_count * sizeof(VkExtensionProperties)
+	);
+	if (extension_properties == NULL) {
+		return LIBC_ERROR_BIT;
+	}
+	result = vkEnumerateDeviceExtensionProperties(physical_device,
+	                                              NULL,
+	                                              &extension_property_count,
+	                                              extension_properties);
+	if (result != VK_SUCCESS) {
+		free(extension_properties);
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+	bool found_swapchain = false;
+	for (uint32_t i = 0; i < extension_property_count; ++i) {
+		if (strcmp(extension_properties[i].extensionName, "VK_KHR_swapchain") == 0) {
+			found_swapchain = true;
+		}
+	}
+	free(extension_properties);
+	if (!found_swapchain) {
+		/* Graphics card cant present image directly to screen */
+		return APP_ERROR_BIT;
+	}
+
 	VkDeviceCreateInfo device_create_info = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 		.pNext = NULL,
@@ -143,7 +183,6 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		.queueCreateInfoCount = 1,
 		.pQueueCreateInfos = &device_queue_create_info,
 	};
-	VkResult result;
 	VkDevice device;
 	result = vkCreateDevice(physical_device,
 	                        &device_create_info,
@@ -284,7 +323,6 @@ static void wl_shell_ping(void *data,
 {
 	(void) data;
 
-printf("PING\n");
 	zxdg_shell_v6_pong(shell, serial);
 }
 
