@@ -51,6 +51,7 @@ static struct wayland wayland = {
 	.shell = NULL,
 	.surface = NULL,
 	.shell_surface = NULL,
+	.toplevel = NULL,
 };
 
 int print_result(VkResult result)
