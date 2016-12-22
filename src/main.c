@@ -104,6 +104,50 @@ int use_device(VkDevice device)
 	return 0;
 }
 
+int physical_device_has_swapchain_extension(VkPhysicalDevice physical_device,
+                                            bool *has_swapchain_extension)
+{
+	*has_swapchain_extension = false;
+
+	VkResult result;
+	uint32_t extension_property_count;
+	result = vkEnumerateDeviceExtensionProperties(physical_device,
+	                                              NULL,
+	                                              &extension_property_count,
+	                                              NULL);
+	if (result != VK_SUCCESS) {
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	VkExtensionProperties *extension_properties = malloc(
+		extension_property_count * sizeof(VkExtensionProperties)
+	);
+	if (extension_properties == NULL) {
+		return LIBC_ERROR_BIT;
+	}
+	result = vkEnumerateDeviceExtensionProperties(physical_device,
+	                                              NULL,
+	                                              &extension_property_count,
+	                                              extension_properties);
+	if (result != VK_SUCCESS) {
+		free(extension_properties);
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	for (uint32_t i = 0; i < extension_property_count; ++i) {
+		if (strcmp(extension_properties[i].extensionName, "VK_KHR_swapchain") == 0) {
+			*has_swapchain_extension = true;
+		}
+	}
+	free(extension_properties);
+
+	return 0;
+}
+
 int use_physical_device(VkPhysicalDevice physical_device)
 {
 	/* Physical Device Queue Family Properties */
@@ -137,41 +181,12 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		.pQueuePriorities = queue_priorities,
 	};
 
-	VkResult result;
-	uint32_t extension_property_count;
-	result = vkEnumerateDeviceExtensionProperties(physical_device,
-	                                              NULL,
-	                                              &extension_property_count,
-	                                              NULL);
-	if (result != VK_SUCCESS) {
-		int ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-	VkExtensionProperties *extension_properties = malloc(
-		extension_property_count * sizeof(VkExtensionProperties)
+	bool has_swapchain_extension;
+	int ret = physical_device_has_swapchain_extension(
+		physical_device,
+		&has_swapchain_extension
 	);
-	if (extension_properties == NULL) {
-		return LIBC_ERROR_BIT;
-	}
-	result = vkEnumerateDeviceExtensionProperties(physical_device,
-	                                              NULL,
-	                                              &extension_property_count,
-	                                              extension_properties);
-	if (result != VK_SUCCESS) {
-		free(extension_properties);
-		int ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-	bool found_swapchain = false;
-	for (uint32_t i = 0; i < extension_property_count; ++i) {
-		if (strcmp(extension_properties[i].extensionName, "VK_KHR_swapchain") == 0) {
-			found_swapchain = true;
-		}
-	}
-	free(extension_properties);
-	if (!found_swapchain) {
+	if (!has_swapchain_extension) {
 		/* Graphics card cant present image directly to screen */
 		return APP_ERROR_BIT;
 	}
@@ -184,12 +199,13 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		.pQueueCreateInfos = &device_queue_create_info,
 	};
 	VkDevice device;
+	VkResult result;
 	result = vkCreateDevice(physical_device,
 	                        &device_create_info,
 	                        NULL,
 	                        &device);
 	if (result != VK_SUCCESS) {
-		int ret = VULKAN_ERROR_BIT;
+		ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
 	}
