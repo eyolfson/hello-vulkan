@@ -377,24 +377,31 @@ static void wayland_fini()
 {
 	if (wayland.toplevel != NULL) {
 		zxdg_toplevel_v6_destroy(wayland.toplevel);
+		wayland.toplevel = NULL;
 	}
 	if (wayland.shell_surface != NULL) {
 		zxdg_surface_v6_destroy(wayland.shell_surface);
+		wayland.shell_surface = NULL;
 	}
 	if (wayland.surface != NULL) {
 		wl_surface_destroy(wayland.surface);
+		wayland.surface = NULL;
 	}
 	if (wayland.shell != NULL) {
 		zxdg_shell_v6_destroy(wayland.shell);
+		wayland.shell = NULL;
 	}
 	if (wayland.compositor != NULL) {
 		wl_compositor_destroy(wayland.compositor);
+		wayland.compositor = NULL;
 	}
 	if (wayland.registry != NULL) {
 		wl_registry_destroy(wayland.registry);
+		wayland.registry = NULL;
 	}
 	if (wayland.display != NULL) {
 		wl_display_disconnect(wayland.display);
+		wayland.display = NULL;
 	}
 }
 
