@@ -14,7 +14,11 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define VK_USE_PLATFORM_WAYLAND_KHR
 #include <vulkan/vulkan.h>
+
+#include <wayland-client.h>
+#include "xdg-shell-client-protocol.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
@@ -27,6 +31,27 @@
 static const int LIBC_ERROR_BIT = 1 << 0;
 static const int VULKAN_ERROR_BIT = 1 << 1;
 static const int APP_ERROR_BIT = 1 << 2;
+static const int WAYLAND_ERROR_BIT = 1 << 3;
+
+struct wayland {
+	struct wl_display *display;
+	struct wl_registry *registry;
+	struct wl_compositor *compositor;
+	struct wl_shm *shm;
+	struct zxdg_shell_v6 *shell;
+	struct wl_surface *surface;
+	struct zxdg_surface_v6 *shell_surface;
+	struct zxdg_toplevel_v6 *toplevel;
+};
+
+static struct wayland wayland = {
+	.display = NULL,
+	.registry = NULL,
+	.compositor = NULL,
+	.shell = NULL,
+	.surface = NULL,
+	.shell_surface = NULL,
+};
 
 int print_result(VkResult result)
 {
@@ -68,6 +93,12 @@ case x: \
 
 int use_device(VkDevice device)
 {
+	VkQueue queue;
+	/* Assumption: there is only one queue family */
+	uint32_t queue_family_index = 0;
+	uint32_t queue_index = 0;
+	vkGetDeviceQueue(device, queue_family_index, queue_index, &queue);
+
 	return 0;
 }
 
@@ -98,7 +129,8 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.queueFamilyIndex = 0, /* Assumption: there is only one queue family */
+		/* Assumption: there is only one queue family */
+		.queueFamilyIndex = 0,
 		.queueCount = 1,
 		.pQueuePriorities = queue_priorities,
 	};
@@ -112,7 +144,10 @@ int use_physical_device(VkPhysicalDevice physical_device)
 	};
 	VkResult result;
 	VkDevice device;
-	result = vkCreateDevice(physical_device, &device_create_info, NULL, &device);
+	result = vkCreateDevice(physical_device,
+	                        &device_create_info,
+	                        NULL,
+	                        &device);
 	if (result != VK_SUCCESS) {
 		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
@@ -187,14 +222,150 @@ int use_instance(VkInstance instance)
 		return ret;
 	}
 
+	VkWaylandSurfaceCreateInfoKHR wayland_surface_create_info_khr = {
+		.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+		.pNext = NULL,
+		.flags = 0,
+		.display = wayland.display,
+		.surface = wayland.surface,
+	};
+	VkSurfaceKHR surface_khr;
+	result = vkCreateWaylandSurfaceKHR(instance,
+	                                   &wayland_surface_create_info_khr,
+	                                   NULL,
+	                                   &surface_khr);
+	if (result != VK_SUCCESS) {
+		free(physical_devices);
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
 	use_physical_devices(physical_devices, physical_device_count);
 
 	free(physical_devices);
 	return 0;
 }
 
+static void wl_registry_global(void *data,
+                               struct wl_registry *wl_registry,
+                               uint32_t name,
+                               const char *interface,
+                               uint32_t version)
+{
+	if (strcmp(interface, wl_compositor_interface.name) == 0) {
+		wayland.compositor = wl_registry_bind(
+			wl_registry, name, &wl_compositor_interface, version);
+	}
+	else if (strcmp(interface, zxdg_shell_v6_interface.name) == 0) {
+		wayland.shell = wl_registry_bind(
+			wl_registry, name, &zxdg_shell_v6_interface, version);
+	}
+}
+
+static void wl_registry_global_remove(void *data,
+                                      struct wl_registry *wl_registry,
+                                      uint32_t name)
+{
+	(void) (data);
+	(void) (wl_registry);
+	(void) (name);
+}
+
+static struct wl_registry_listener wl_registry_listener = {
+	.global = wl_registry_global,
+	.global_remove = wl_registry_global_remove,
+};
+
+static void wl_shell_ping(void *data,
+                          struct zxdg_shell_v6 *shell,
+                          uint32_t serial)
+{
+	(void) data;
+
+printf("PING\n");
+	zxdg_shell_v6_pong(shell, serial);
+}
+
+static struct zxdg_shell_v6_listener wl_shell_listener = {
+	.ping = wl_shell_ping,
+};
+
+static int wayland_init()
+{
+	wayland.display = wl_display_connect(NULL);
+	if (wayland.display == NULL) {
+		return WAYLAND_ERROR_BIT;
+	}
+
+	wayland.registry = wl_display_get_registry(wayland.display);
+	if (wayland.registry == NULL) {
+		return WAYLAND_ERROR_BIT;
+	}
+
+	wl_registry_add_listener(wayland.registry, &wl_registry_listener, NULL);
+	wl_display_roundtrip(wayland.display);
+	if ((wayland.compositor == NULL) || (wayland.shell == NULL)) {
+		return WAYLAND_ERROR_BIT;
+	}
+
+	zxdg_shell_v6_add_listener(wayland.shell, &wl_shell_listener, NULL);
+
+	wayland.surface = wl_compositor_create_surface(wayland.compositor);
+	if (wayland.surface == NULL) {
+		return WAYLAND_ERROR_BIT;
+	}
+
+	wayland.shell_surface = zxdg_shell_v6_get_xdg_surface(wayland.shell,
+	                                                      wayland.surface);
+	if (wayland.shell_surface == NULL) {
+		return WAYLAND_ERROR_BIT;
+	}
+
+	wayland.toplevel = zxdg_surface_v6_get_toplevel(wayland.shell_surface);
+	if (wayland.toplevel == NULL) {
+		return WAYLAND_ERROR_BIT;
+	}
+
+	zxdg_surface_v6_set_window_geometry(wayland.shell_surface,
+	                                    0, 0, 640, 480);
+	zxdg_toplevel_v6_set_title(wayland.toplevel, "Hello Vulkan");
+
+	return 0;
+}
+
+static void wayland_fini()
+{
+	if (wayland.toplevel != NULL) {
+		zxdg_toplevel_v6_destroy(wayland.toplevel);
+	}
+	if (wayland.shell_surface != NULL) {
+		zxdg_surface_v6_destroy(wayland.shell_surface);
+	}
+	if (wayland.surface != NULL) {
+		wl_surface_destroy(wayland.surface);
+	}
+	if (wayland.shell != NULL) {
+		zxdg_shell_v6_destroy(wayland.shell);
+	}
+	if (wayland.compositor != NULL) {
+		wl_compositor_destroy(wayland.compositor);
+	}
+	if (wayland.registry != NULL) {
+		wl_registry_destroy(wayland.registry);
+	}
+	if (wayland.display != NULL) {
+		wl_display_disconnect(wayland.display);
+	}
+}
+
 int main(int argc, char **argv)
 {
+	int ret = wayland_init();
+	if (ret != 0) {
+		return ret;
+	}
+
 	const char *enabled_extension_names[] = {
 		"VK_KHR_surface",
 		"VK_KHR_wayland_surface",
@@ -213,13 +384,14 @@ int main(int argc, char **argv)
 	VkResult result;
 	result = vkCreateInstance(&instance_create_info, NULL, &instance);
 	if (result != VK_SUCCESS) {
-		int ret = VULKAN_ERROR_BIT;
+		ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
 	}
 
-	int ret = use_instance(instance);
+	ret = use_instance(instance);
 
 	vkDestroyInstance(instance, NULL);
+	wayland_fini();
 	return ret;
 }
