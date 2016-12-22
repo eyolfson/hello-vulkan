@@ -191,12 +191,20 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		return APP_ERROR_BIT;
 	}
 
+	const char *const enabled_extension_names[1] = {
+		"VK_KHR_swapchain",
+	};
 	VkDeviceCreateInfo device_create_info = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
 		.queueCreateInfoCount = 1,
 		.pQueueCreateInfos = &device_queue_create_info,
+		.enabledLayerCount = 0,
+		.ppEnabledLayerNames = NULL,
+		.enabledExtensionCount = 1,
+		.ppEnabledExtensionNames = enabled_extension_names,
+		.pEnabledFeatures = NULL,
 	};
 	VkDevice device;
 	VkResult result;
