@@ -34,6 +34,8 @@ static const int VULKAN_ERROR_BIT = 1 << 1;
 static const int APP_ERROR_BIT = 1 << 2;
 static const int WAYLAND_ERROR_BIT = 1 << 3;
 
+static VkSurfaceKHR surface_khr;
+
 struct wayland {
 	struct wl_display *display;
 	struct wl_registry *registry;
@@ -293,7 +295,6 @@ int use_instance(VkInstance instance)
 		.display = wayland.display,
 		.surface = wayland.surface,
 	};
-	VkSurfaceKHR surface_khr;
 	result = vkCreateWaylandSurfaceKHR(instance,
 	                                   &wayland_surface_create_info_khr,
 	                                   NULL,
