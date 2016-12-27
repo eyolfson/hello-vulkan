@@ -57,6 +57,8 @@ static struct wayland wayland = {
 	.toplevel = NULL,
 };
 
+static VkSurfaceKHR surface_khr;
+
 int print_result(VkResult result)
 {
 	const char *msg;
@@ -102,6 +104,24 @@ int use_device(VkDevice device)
 	uint32_t queue_family_index = 0;
 	uint32_t queue_index = 0;
 	vkGetDeviceQueue(device, queue_family_index, queue_index, &queue);
+
+	return 0;
+}
+
+int physical_device_capabilities(VkPhysicalDevice physical_device)
+{
+	VkSurfaceCapabilitiesKHR surface_capabilities_khr;
+	VkResult result;
+	result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+		physical_device,
+		surface_khr,
+		&surface_capabilities_khr
+	);
+	if (result != VK_SUCCESS) {
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
 
 	return 0;
 }
@@ -188,9 +208,17 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		physical_device,
 		&has_swapchain_extension
 	);
+	if (ret != 0) {
+		return ret;
+	}
 	if (!has_swapchain_extension) {
 		/* Graphics card cant present image directly to screen */
 		return APP_ERROR_BIT;
+	}
+
+	ret = physical_device_capabilities(physical_device);
+	if (ret != 0) {
+		return ret;
 	}
 
 	const char *const enabled_extension_names[1] = {
