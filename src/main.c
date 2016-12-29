@@ -193,14 +193,16 @@ int use_physical_device(VkPhysicalDevice physical_device)
 	free(queue_family_properties);
 
 	const float queue_priorities[1] = {1.0f};
-	VkDeviceQueueCreateInfo device_queue_create_info = {
-		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-		.pNext = NULL,
-		.flags = 0,
-		/* Assumption: there is only one queue family */
-		.queueFamilyIndex = 0,
-		.queueCount = 1,
-		.pQueuePriorities = queue_priorities,
+	VkDeviceQueueCreateInfo device_queue_create_infos[1] = {
+		{
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = 0,
+			/* Assumption: there is only one queue family */
+			.queueFamilyIndex = 0,
+			.queueCount = 1,
+			.pQueuePriorities = queue_priorities,
+		},
 	};
 
 	bool has_swapchain_extension;
@@ -229,7 +231,7 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		.pNext = NULL,
 		.flags = 0,
 		.queueCreateInfoCount = 1,
-		.pQueueCreateInfos = &device_queue_create_info,
+		.pQueueCreateInfos = device_queue_create_infos,
 		.enabledLayerCount = 0,
 		.ppEnabledLayerNames = NULL,
 		.enabledExtensionCount = 1,
