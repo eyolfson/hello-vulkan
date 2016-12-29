@@ -311,7 +311,68 @@ static uint8_t use_shader_modules(
 		return ret;
 	}
 
+	VkAttachmentDescription color_attachment_description = {
+		.flags = 0,
+		.format = image_format,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+		.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+	};
+	VkAttachmentDescription color_attachment_descriptions[1] = {
+		color_attachment_description,
+	};
 
+	VkAttachmentReference color_attachment_reference = {
+		.attachment = 0,
+		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+	VkAttachmentReference color_attachments_references[1] = {
+		color_attachment_reference,
+	};
+
+	VkSubpassDescription subpass_description = {
+		.flags = 0,
+		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+		.inputAttachmentCount = 0,
+		.pInputAttachments = NULL,
+		.colorAttachmentCount = 1,
+		.pColorAttachments = color_attachments_references,
+		.pResolveAttachments = NULL,
+		.pDepthStencilAttachment = NULL,
+		.preserveAttachmentCount = 0,
+		.pPreserveAttachments = NULL,
+	};
+	VkSubpassDescription subpass_descriptions[1] = {
+		subpass_description,
+	};
+
+	VkRenderPassCreateInfo render_pass_create_info = {
+		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+		.attachmentCount = 1,
+		.pAttachments = color_attachment_descriptions,
+		.subpassCount = 1,
+		.pSubpasses = subpass_descriptions,
+		.dependencyCount = 0,
+		.pDependencies = NULL,
+	};
+
+	VkRenderPass render_pass;
+	result = vkCreateRenderPass(device, &render_pass_create_info, NULL,
+	                            &render_pass);
+	if (result != VK_SUCCESS) {
+		vkDestroyPipelineLayout(device, pipeline_layout, NULL);
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	vkDestroyRenderPass(device, render_pass, NULL);
 	vkDestroyPipelineLayout(device, pipeline_layout, NULL);
 	return 0;
 }
