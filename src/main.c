@@ -29,10 +29,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const int LIBC_ERROR_BIT = 1 << 0;
-static const int VULKAN_ERROR_BIT = 1 << 1;
-static const int APP_ERROR_BIT = 1 << 2;
-static const int WAYLAND_ERROR_BIT = 1 << 3;
+static const int16_t WIDTH = 640;
+static const int16_t HEIGHT = 480;
+
+static const uint8_t LIBC_ERROR_BIT = 1 << 0;
+static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
+static const uint8_t APP_ERROR_BIT = 1 << 2;
+static const uint8_t WAYLAND_ERROR_BIT = 1 << 3;
 
 static VkSurfaceKHR surface_khr;
 
@@ -121,6 +124,16 @@ int physical_device_capabilities(VkPhysicalDevice physical_device)
 		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
+	}
+
+	if (WIDTH > surface_capabilities_khr.maxImageExtent.width ||
+			WIDTH < surface_capabilities_khr.minImageExtent.width) {
+		return APP_ERROR_BIT;
+	}
+
+	if (HEIGHT > surface_capabilities_khr.maxImageExtent.height ||
+			HEIGHT < surface_capabilities_khr.minImageExtent.height) {
+		return APP_ERROR_BIT;
 	}
 
 	return 0;
@@ -424,7 +437,7 @@ static int wayland_init()
 	}
 
 	zxdg_surface_v6_set_window_geometry(wayland.shell_surface,
-	                                    0, 0, 640, 480);
+	                                    0, 0, WIDTH, HEIGHT);
 	zxdg_toplevel_v6_set_title(wayland.toplevel, "Hello Vulkan");
 
 	return 0;
