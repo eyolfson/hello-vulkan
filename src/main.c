@@ -33,6 +33,7 @@ static const int16_t WIDTH = 640;
 static const int16_t HEIGHT = 480;
 
 static uint32_t min_image_count;
+static VkSurfaceTransformFlagBitsKHR current_transform;
 
 static const uint8_t LIBC_ERROR_BIT = 1 << 0;
 static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
@@ -110,6 +111,41 @@ int use_device(VkDevice device)
 	uint32_t queue_index = 0;
 	vkGetDeviceQueue(device, queue_family_index, queue_index, &queue);
 
+	VkSwapchainCreateInfoKHR swapchain_create_info = {
+		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+		.pNext = NULL,
+		.flags = 0,
+		.surface = surface_khr,
+		.minImageCount = min_image_count,
+		.imageFormat = VK_FORMAT_B8G8R8A8_UNORM,
+		.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+		.imageExtent = { .width = WIDTH, .height = HEIGHT},
+		.imageArrayLayers = 1,
+		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.queueFamilyIndexCount = 0,
+		.pQueueFamilyIndices = NULL,
+		.preTransform = current_transform,
+		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+		.presentMode = VK_PRESENT_MODE_FIFO_KHR,
+		.clipped = VK_TRUE,
+		.oldSwapchain = VK_NULL_HANDLE,
+	};
+
+	VkSwapchainKHR swapchain_khr;
+	VkResult result = vkCreateSwapchainKHR(
+		device,
+		&swapchain_create_info,
+		NULL,
+		&swapchain_khr
+	);
+	if (result != VK_SUCCESS) {
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	vkDestroySwapchainKHR(device, swapchain_khr, NULL);
 	return 0;
 }
 
@@ -139,6 +175,7 @@ int physical_device_capabilities(VkPhysicalDevice physical_device)
 	}
 
 	min_image_count = surface_capabilities_khr.minImageCount;
+	current_transform = surface_capabilities_khr.currentTransform;
 
 	return 0;
 }
