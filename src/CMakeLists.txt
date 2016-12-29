@@ -42,6 +42,18 @@ add_custom_command(
 	     ${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.c
 )
 
+add_custom_command(
+	OUTPUT ${CMAKE_BINARY_DIR}/frag.spv
+	COMMAND glslangValidator
+	ARGS -V ${CMAKE_SOURCE_DIR}/shader.frag
+)
+
+add_custom_command(
+	OUTPUT ${CMAKE_BINARY_DIR}/vert.spv
+	COMMAND glslangValidator
+	ARGS -V ${CMAKE_SOURCE_DIR}/shader.vert
+)
+
 include_directories(
 	${CMAKE_BINARY_DIR}
 	${WAYLAND_CLIENT_INCLUDE_DIRS}
@@ -51,6 +63,8 @@ add_executable(hello-vulkan
 	main.c
 	${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.h
 	${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.c
+	${CMAKE_BINARY_DIR}/frag.spv
+	${CMAKE_BINARY_DIR}/vert.spv
 )
 target_link_libraries(hello-vulkan
 	vulkan
