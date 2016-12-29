@@ -172,7 +172,7 @@ static uint8_t use_shader_modules(
 		pipeline_shader_frag_stage_create_info,
 	};
 
-	VkPipelineVertexInputStateCreateInfo pipline_vertex_input_state_create_info = {
+	VkPipelineVertexInputStateCreateInfo pipeline_vertex_input_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -372,6 +372,49 @@ static uint8_t use_shader_modules(
 		return ret;
 	}
 
+	VkGraphicsPipelineCreateInfo graphics_pipeline_create_info = {
+		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+		.stageCount = 2,
+		.pStages = pipeline_shader_stages,
+		.pVertexInputState = &pipeline_vertex_input_state_create_info,
+		.pInputAssemblyState = &pipeline_input_assembly_state_create_info,
+		.pTessellationState = NULL,
+		.pViewportState = &pipeline_viewport_state_create_info,
+		.pRasterizationState = &pipeline_rasterization_state_create_info,
+		.pMultisampleState = &pipeline_multisample_state_create_info,
+		.pDepthStencilState = NULL,
+		.pColorBlendState = &pipeline_color_blend_state_create_info,
+		.pDynamicState = NULL,
+		.layout = pipeline_layout,
+		.renderPass = render_pass,
+		.subpass = 0,
+		.basePipelineHandle = VK_NULL_HANDLE,
+		.basePipelineIndex = -1,
+	};
+	VkGraphicsPipelineCreateInfo graphics_pipeline_create_infos[1] = {
+		graphics_pipeline_create_info,
+	};
+
+	VkPipeline graphics_pipelines[1];
+	result = vkCreateGraphicsPipelines(
+		device,
+		VK_NULL_HANDLE,                  /* pipelineCache */
+		1,                               /* createInfoCount */
+		graphics_pipeline_create_infos,  /* pCreateInfos */
+		NULL,                            /* pAllocator */
+		graphics_pipelines               /* pPipelines */
+	);
+	if (result != VK_SUCCESS) {
+		vkDestroyRenderPass(device, render_pass, NULL);
+		vkDestroyPipelineLayout(device, pipeline_layout, NULL);
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	vkDestroyPipeline(device, graphics_pipelines[0], NULL);
 	vkDestroyRenderPass(device, render_pass, NULL);
 	vkDestroyPipelineLayout(device, pipeline_layout, NULL);
 	return 0;
