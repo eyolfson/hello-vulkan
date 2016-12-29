@@ -29,6 +29,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
 static const int16_t WIDTH = 640;
 static const int16_t HEIGHT = 480;
 
@@ -45,6 +50,32 @@ static const uint8_t LIBC_ERROR_BIT = 1 << 0;
 static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
 static const uint8_t APP_ERROR_BIT = 1 << 2;
 static const uint8_t WAYLAND_ERROR_BIT = 1 << 3;
+static const uint8_t POSIX_ERROR_BIT = 1 << 4;
+
+static uint8_t mmap_file(const char *filename, const uint32_t **code, size_t *code_size)
+{
+	int fd = open(filename, O_RDONLY | O_CLOEXEC);
+	if (fd == -1) {
+		return POSIX_ERROR_BIT;
+	}
+
+	struct stat stat;
+	if (fstat(fd, &stat) == -1) {
+		close(fd);
+		return POSIX_ERROR_BIT;
+	}
+
+	*code_size = stat.st_size;
+	*code = mmap(NULL, *code_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+	if (*code == MAP_FAILED) {
+		close(fd);
+		return POSIX_ERROR_BIT;
+	}
+
+	close(fd);
+	return 0;
+}
 
 static VkSurfaceKHR surface_khr;
 
@@ -109,7 +140,68 @@ case x: \
 	}
 }
 
-int use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
+uint8_t use_image_views(VkDevice device,
+                        VkImageView *image_views,
+                        uint32_t image_view_count)
+{
+	const uint32_t *frag_code;
+	size_t frag_code_size;
+
+	uint8_t ret = mmap_file("frag.spv", &frag_code, &frag_code_size);
+	if (ret != 0) {
+		return ret;
+	}
+
+	const uint32_t *vert_code;
+	size_t vert_code_size;
+	ret = mmap_file("vert.spv", &vert_code, &vert_code_size);
+	if (ret != 0) {
+		munmap((void *) frag_code, frag_code_size);
+		return ret;
+	}
+
+	VkShaderModuleCreateInfo shader_module_create_info = {
+		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+		.codeSize = frag_code_size,
+		.pCode = frag_code,
+	};
+	VkResult result;
+	VkShaderModule frag_shader_module;
+	result = vkCreateShaderModule(device, &shader_module_create_info, NULL,
+	                              &frag_shader_module);
+	if (result != VK_SUCCESS) {
+		munmap((void *) vert_code, vert_code_size);
+		munmap((void *) frag_code, frag_code_size);
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	shader_module_create_info.codeSize = vert_code_size;
+	shader_module_create_info.pCode = vert_code;
+
+	VkShaderModule vert_shader_module;
+	result = vkCreateShaderModule(device, &shader_module_create_info, NULL,
+	                              &vert_shader_module);
+	if (result != VK_SUCCESS) {
+		vkDestroyShaderModule(device, frag_shader_module, NULL);
+		munmap((void *) vert_code, vert_code_size);
+		munmap((void *) frag_code, frag_code_size);
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	vkDestroyShaderModule(device, vert_shader_module, NULL);
+	vkDestroyShaderModule(device, frag_shader_module, NULL);
+	munmap((void *) vert_code, vert_code_size);
+	munmap((void *) frag_code, frag_code_size);
+	return 0;
+}
+
+uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 {
 	uint32_t swapchain_image_count;
 
@@ -181,12 +273,14 @@ int use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 		}
 	}
 
+	int ret = use_image_views(device, image_views, swapchain_image_count);
+
 	free(image_views);
 	free(swapchain_images);
-	return 0;
+	return ret;
 }
 
-int use_device(VkDevice device)
+uint8_t use_device(VkDevice device)
 {
 	VkQueue queue;
 	/* Assumption: there is only one queue family */
@@ -234,7 +328,7 @@ int use_device(VkDevice device)
 	return ret;
 }
 
-int physical_device_capabilities(VkPhysicalDevice physical_device)
+uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 {
 	VkSurfaceCapabilitiesKHR surface_capabilities_khr;
 	VkResult result;
@@ -265,8 +359,9 @@ int physical_device_capabilities(VkPhysicalDevice physical_device)
 	return 0;
 }
 
-int physical_device_has_swapchain_extension(VkPhysicalDevice physical_device,
-                                            bool *has_swapchain_extension)
+uint8_t physical_device_has_swapchain_extension(
+	VkPhysicalDevice physical_device,
+	bool *has_swapchain_extension)
 {
 	*has_swapchain_extension = false;
 
@@ -309,7 +404,7 @@ int physical_device_has_swapchain_extension(VkPhysicalDevice physical_device,
 	return 0;
 }
 
-int use_physical_device(VkPhysicalDevice physical_device)
+uint8_t use_physical_device(VkPhysicalDevice physical_device)
 {
 	/* Physical Device Queue Family Properties */
 	uint32_t queue_family_property_count;
@@ -395,8 +490,8 @@ int use_physical_device(VkPhysicalDevice physical_device)
 	return ret;
 }
 
-int use_physical_devices(VkPhysicalDevice *physical_devices,
-                         uint32_t physical_device_count)
+uint8_t use_physical_devices(VkPhysicalDevice *physical_devices,
+                             uint32_t physical_device_count)
 {
 	printf("Found %u Physical Device", physical_device_count);
 	if (physical_device_count > 1) {
@@ -425,7 +520,7 @@ int use_physical_devices(VkPhysicalDevice *physical_devices,
 	return 0;
 }
 
-int use_instance(VkInstance instance)
+uint8_t use_instance(VkInstance instance)
 {
 	uint32_t physical_device_count;
 	VkResult result;
