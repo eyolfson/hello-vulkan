@@ -414,6 +414,55 @@ static uint8_t use_shader_modules(
 		return ret;
 	}
 
+	VkFramebuffer *swapchain_framebuffers = malloc(
+		image_view_count * sizeof(VkFramebuffer)
+	);
+	if (swapchain_framebuffers == NULL) {
+		vkDestroyPipeline(device, graphics_pipelines[0], NULL);
+		vkDestroyRenderPass(device, render_pass, NULL);
+		vkDestroyPipelineLayout(device, pipeline_layout, NULL);
+		return LIBC_ERROR_BIT;
+	}
+
+	for (uint32_t i = 0; i < image_view_count; ++i) {
+		VkImageView attachments[1] = {
+			image_views[i],
+		};
+		VkFramebufferCreateInfo framebuffer_create_info = {
+			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+			.pNext = NULL,
+			.flags = 0,
+			.renderPass = render_pass,
+			.attachmentCount = 1,
+			.pAttachments = attachments,
+			.width = swapchain_image_extent.width,
+			.height = swapchain_image_extent.height,
+			.layers = 1,
+		};
+		result = vkCreateFramebuffer(device,
+		                             &framebuffer_create_info,
+		                             NULL,
+		                             &(swapchain_framebuffers[i]));
+		if (result != VK_SUCCESS) {
+			for (uint32_t j = 0; j < i; ++j) {
+				vkDestroyFramebuffer(device,
+				                     swapchain_framebuffers[j],
+				                     NULL);
+			}
+			free(swapchain_framebuffers);
+			vkDestroyPipeline(device, graphics_pipelines[0], NULL);
+			vkDestroyRenderPass(device, render_pass, NULL);
+			vkDestroyPipelineLayout(device, pipeline_layout, NULL);
+			uint8_t ret = VULKAN_ERROR_BIT;
+			ret |= print_result(result);
+			return ret;
+		}
+	}
+
+	for (uint32_t i = 0; i < image_view_count; ++i) {
+		vkDestroyFramebuffer(device, swapchain_framebuffers[i], NULL);
+	}
+	free(swapchain_framebuffers);
 	vkDestroyPipeline(device, graphics_pipelines[0], NULL);
 	vkDestroyRenderPass(device, render_pass, NULL);
 	vkDestroyPipelineLayout(device, pipeline_layout, NULL);
