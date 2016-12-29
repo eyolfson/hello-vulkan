@@ -139,6 +139,49 @@ int use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 		return ret;
 	}
 
+	VkImageView *image_views = malloc(
+		swapchain_image_count * sizeof(VkImageView)
+	);
+	if (image_views == NULL) {
+		free(swapchain_images);
+		return LIBC_ERROR_BIT;
+	}
+
+	for (uint32_t i = 0; i < swapchain_image_count; ++i) {
+		VkImageViewCreateInfo image_view_create_info = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.pNext = NULL,
+			.flags = 0,
+			.image = swapchain_images[i],
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = image_format,
+			.components = {
+				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.g = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.b = VK_COMPONENT_SWIZZLE_IDENTITY,
+				.a = VK_COMPONENT_SWIZZLE_IDENTITY,
+			},
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+		};
+		VkResult result;
+		result = vkCreateImageView(device, &image_view_create_info,
+		                           NULL, &(image_views[i]));
+		if (result != VK_SUCCESS) {
+			free(image_views);
+			free(swapchain_images);
+			int ret = VULKAN_ERROR_BIT;
+			ret |= print_result(result);
+			return ret;
+		}
+	}
+
+	free(image_views);
 	free(swapchain_images);
 	return 0;
 }
