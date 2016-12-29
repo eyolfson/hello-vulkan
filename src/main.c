@@ -32,6 +32,8 @@
 static const int16_t WIDTH = 640;
 static const int16_t HEIGHT = 480;
 
+static uint32_t min_image_count;
+
 static const uint8_t LIBC_ERROR_BIT = 1 << 0;
 static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
 static const uint8_t APP_ERROR_BIT = 1 << 2;
@@ -135,6 +137,8 @@ int physical_device_capabilities(VkPhysicalDevice physical_device)
 			HEIGHT < surface_capabilities_khr.minImageExtent.height) {
 		return APP_ERROR_BIT;
 	}
+
+	min_image_count = surface_capabilities_khr.minImageCount;
 
 	return 0;
 }
