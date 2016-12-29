@@ -140,6 +140,122 @@ case x: \
 	}
 }
 
+static uint8_t use_framebuffers(
+	VkDevice device,
+	VkRenderPass render_pass,
+	VkPipeline graphics_pipeline,
+	VkFramebuffer *swapchain_framebuffers,
+	uint32_t swapchain_framebuffer_count)
+{
+	VkCommandPoolCreateInfo command_pool_create_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+		/* Assumption: there is only one queue family */
+		.queueFamilyIndex = 0,
+	};
+
+	VkResult result;
+	VkCommandPool command_pool;
+	result = vkCreateCommandPool(device, &command_pool_create_info, NULL,
+	                             &command_pool);
+	if (result != VK_SUCCESS) {
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	VkCommandBuffer *command_buffers = malloc(
+		swapchain_framebuffer_count * sizeof(VkCommandBuffer)
+	);
+	if (command_buffers == NULL) {
+		vkDestroyCommandPool(device, command_pool, NULL);
+		return LIBC_ERROR_BIT;
+	}
+
+	VkCommandBufferAllocateInfo command_buffer_allocate_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		.pNext = NULL,
+		.commandPool = command_pool,
+		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		.commandBufferCount = swapchain_framebuffer_count,
+	};
+
+	result = vkAllocateCommandBuffers(device, &command_buffer_allocate_info,
+	                                  command_buffers);
+	if (result != VK_SUCCESS) {
+		free(command_buffers);
+		vkDestroyCommandPool(device, command_pool, NULL);
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	for (uint32_t i = 0; i < swapchain_framebuffer_count; ++i) {
+		VkCommandBufferBeginInfo command_buffer_begin_info = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = NULL,
+			.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+			.pInheritanceInfo = NULL,
+		};
+		result = vkBeginCommandBuffer(command_buffers[i],
+		                              &command_buffer_begin_info);
+		if (result != VK_SUCCESS) {
+			vkFreeCommandBuffers(device, command_pool,
+			                     swapchain_framebuffer_count,
+			                     command_buffers);
+			free(command_buffers);
+			vkDestroyCommandPool(device, command_pool, NULL);
+			uint8_t ret = VULKAN_ERROR_BIT;
+			ret |= print_result(result);
+			return ret;
+		}
+
+		VkClearValue clear_value = {0.0f, 0.0f, 0.0f, 0.0f};
+		VkClearValue clear_values[1] = {
+			clear_value,
+		};
+		VkRenderPassBeginInfo render_pass_begin_info = {
+			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+			.pNext = NULL,
+			.renderPass = render_pass,
+			.framebuffer = swapchain_framebuffers[i],
+			.renderArea = {
+				.offset = {
+					.x = 0,
+					.y = 0,
+				},
+				.extent = swapchain_image_extent,
+			},
+			.clearValueCount = 1,
+			.pClearValues = clear_values,
+		};
+
+		vkCmdBeginRenderPass(command_buffers[i], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+		vkCmdDraw(command_buffers[i], 3, 1, 0, 0);
+		vkCmdEndRenderPass(command_buffers[i]);
+
+		result = vkEndCommandBuffer(command_buffers[i]);
+		if (result != VK_SUCCESS) {
+			vkFreeCommandBuffers(device, command_pool,
+			                     swapchain_framebuffer_count,
+			                     command_buffers);
+			free(command_buffers);
+			vkDestroyCommandPool(device, command_pool, NULL);
+			uint8_t ret = VULKAN_ERROR_BIT;
+			ret |= print_result(result);
+			return ret;
+		}
+	}
+
+	vkFreeCommandBuffers(device, command_pool, swapchain_framebuffer_count,
+	                     command_buffers);
+	free(command_buffers);
+	vkDestroyCommandPool(device, command_pool, NULL);
+	return 0;
+}
+
 static uint8_t use_shader_modules(
 	VkDevice device,
 	VkImageView *image_views,
@@ -459,6 +575,12 @@ static uint8_t use_shader_modules(
 		}
 	}
 
+	uint8_t ret = use_framebuffers(device,
+	                               render_pass,
+	                               graphics_pipelines[0],
+	                               swapchain_framebuffers,
+	                               image_view_count);
+
 	for (uint32_t i = 0; i < image_view_count; ++i) {
 		vkDestroyFramebuffer(device, swapchain_framebuffers[i], NULL);
 	}
@@ -466,7 +588,7 @@ static uint8_t use_shader_modules(
 	vkDestroyPipeline(device, graphics_pipelines[0], NULL);
 	vkDestroyRenderPass(device, render_pass, NULL);
 	vkDestroyPipelineLayout(device, pipeline_layout, NULL);
-	return 0;
+	return ret;
 }
 
 uint8_t use_image_views(VkDevice device,
