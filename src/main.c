@@ -40,11 +40,11 @@ static const int16_t HEIGHT = 480;
 static uint32_t min_image_count;
 static VkSurfaceTransformFlagBitsKHR current_transform;
 
-static VkExtent2D image_extent = {
+static VkExtent2D swapchain_image_extent = {
 	.width = WIDTH,
 	.height = HEIGHT
 };
-static VkFormat image_format = VK_FORMAT_B8G8R8A8_UNORM;
+static VkFormat swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
 
 static const uint8_t LIBC_ERROR_BIT = 1 << 0;
 static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
@@ -205,7 +205,7 @@ static uint8_t use_shader_modules(
 			.x = 0,
 			.y = 0,
 		},
-		.extent = image_extent,
+		.extent = swapchain_image_extent,
 	};
 	VkRect2D scissors[1] = { scissor };
 
@@ -313,7 +313,7 @@ static uint8_t use_shader_modules(
 
 	VkAttachmentDescription color_attachment_description = {
 		.flags = 0,
-		.format = image_format,
+		.format = swapchain_image_format,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -529,7 +529,7 @@ uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 			.flags = 0,
 			.image = swapchain_images[i],
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = image_format,
+			.format = swapchain_image_format,
 			.components = {
 				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 				.g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -577,9 +577,9 @@ uint8_t use_device(VkDevice device)
 		.flags = 0,
 		.surface = surface_khr,
 		.minImageCount = min_image_count,
-		.imageFormat = image_format,
+		.imageFormat = swapchain_image_format,
 		.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-		.imageExtent = image_extent,
+		.imageExtent = swapchain_image_extent,
 		.imageArrayLayers = 1,
 		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
