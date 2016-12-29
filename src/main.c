@@ -103,6 +103,40 @@ case x: \
 	}
 }
 
+int use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
+{
+	uint32_t swapchain_image_count;
+
+	VkResult result;
+	result = vkGetSwapchainImagesKHR(device, swapchain,
+	                                 &swapchain_image_count, NULL);
+	if (result != VK_SUCCESS) {
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	VkImage *swapchain_images = malloc(
+		swapchain_image_count * sizeof(VkImage)
+	);
+	if (swapchain_images == NULL) {
+		return LIBC_ERROR_BIT;
+	}
+
+	result = vkGetSwapchainImagesKHR(device, swapchain,
+	                                 &swapchain_image_count,
+	                                 swapchain_images);
+	if (result != VK_SUCCESS) {
+		free(swapchain_images);
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	free(swapchain_images);
+	return 0;
+}
+
 int use_device(VkDevice device)
 {
 	VkQueue queue;
@@ -132,12 +166,12 @@ int use_device(VkDevice device)
 		.oldSwapchain = VK_NULL_HANDLE,
 	};
 
-	VkSwapchainKHR swapchain_khr;
+	VkSwapchainKHR swapchain;
 	VkResult result = vkCreateSwapchainKHR(
 		device,
 		&swapchain_create_info,
 		NULL,
-		&swapchain_khr
+		&swapchain
 	);
 	if (result != VK_SUCCESS) {
 		int ret = VULKAN_ERROR_BIT;
@@ -145,8 +179,10 @@ int use_device(VkDevice device)
 		return ret;
 	}
 
-	vkDestroySwapchainKHR(device, swapchain_khr, NULL);
-	return 0;
+	int ret = use_swapchain(device, swapchain);
+
+	vkDestroySwapchainKHR(device, swapchain, NULL);
+	return ret;
 }
 
 int physical_device_capabilities(VkPhysicalDevice physical_device)
@@ -304,10 +340,10 @@ int use_physical_device(VkPhysicalDevice physical_device)
 		return ret;
 	}
 
-	use_device(device);
+	ret = use_device(device);
 
 	vkDestroyDevice(device, NULL);
-	return 0;
+	return ret;
 }
 
 int use_physical_devices(VkPhysicalDevice *physical_devices,
@@ -390,10 +426,10 @@ int use_instance(VkInstance instance)
 		return ret;
 	}
 
-	use_physical_devices(physical_devices, physical_device_count);
+	int ret = use_physical_devices(physical_devices, physical_device_count);
 
 	free(physical_devices);
-	return 0;
+	return ret;
 }
 
 static void wl_registry_global(void *data,
