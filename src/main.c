@@ -35,6 +35,12 @@ static const int16_t HEIGHT = 480;
 static uint32_t min_image_count;
 static VkSurfaceTransformFlagBitsKHR current_transform;
 
+static VkExtent2D image_extent = {
+	.width = WIDTH,
+	.height = HEIGHT
+};
+static VkFormat image_format = VK_FORMAT_B8G8R8A8_UNORM;
+
 static const uint8_t LIBC_ERROR_BIT = 1 << 0;
 static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
 static const uint8_t APP_ERROR_BIT = 1 << 2;
@@ -151,9 +157,9 @@ int use_device(VkDevice device)
 		.flags = 0,
 		.surface = surface_khr,
 		.minImageCount = min_image_count,
-		.imageFormat = VK_FORMAT_B8G8R8A8_UNORM,
+		.imageFormat = image_format,
 		.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
-		.imageExtent = { .width = WIDTH, .height = HEIGHT},
+		.imageExtent = image_extent,
 		.imageArrayLayers = 1,
 		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
