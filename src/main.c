@@ -183,33 +183,33 @@ static uint8_t use_command_buffers(
 		return ret;
 	}
 
-	VkSemaphore wait_semaphores[1] = {
+	VkSemaphore wait_semaphores[] = {
 		image_available_semaphore,
 	};
-	VkPipelineStageFlags wait_stages[1] = {
+	VkPipelineStageFlags wait_stages[] = {
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 	};
-	VkSemaphore signal_semaphores[1] = {
+	VkSemaphore signal_semaphores[] = {
 		render_finished_semaphore,
 	};
-	VkCommandBuffer submit_command_buffers[1] = {
+	VkCommandBuffer submit_command_buffers[] = {
 		command_buffers[image_index],
 	};
 	VkSubmitInfo submit_info = {
 		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 		.pNext = NULL,
-		.waitSemaphoreCount = 1,
+		.waitSemaphoreCount = ARRAY_SIZE(wait_semaphores),
 		.pWaitSemaphores = wait_semaphores,
 		.pWaitDstStageMask = wait_stages,
-		.commandBufferCount = 1,
+		.commandBufferCount = ARRAY_SIZE(submit_command_buffers),
 		.pCommandBuffers = submit_command_buffers,
-		.signalSemaphoreCount = 1,
+		.signalSemaphoreCount = ARRAY_SIZE(signal_semaphores),
 		.pSignalSemaphores = signal_semaphores,
 	};
-	VkSubmitInfo submits[1] = {
+	VkSubmitInfo submits[] = {
 		submit_info,
 	};
-	result = vkQueueSubmit(queue, 1, submits, VK_NULL_HANDLE);
+	result = vkQueueSubmit(queue, ARRAY_SIZE(submits), submits, VK_NULL_HANDLE);
 	if (result != VK_SUCCESS) {
 		vkDestroySemaphore(device, render_finished_semaphore, NULL);
 		vkDestroySemaphore(device, image_available_semaphore, NULL);
@@ -218,15 +218,15 @@ static uint8_t use_command_buffers(
 		return ret;
 	}
 
-	VkSwapchainKHR swapchains[1] = {
+	VkSwapchainKHR swapchains[] = {
 		swapchain,
 	};
 	VkPresentInfoKHR present_info = {
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 		.pNext = NULL,
-		.waitSemaphoreCount = 1,
+		.waitSemaphoreCount = ARRAY_SIZE(signal_semaphores),
 		.pWaitSemaphores = signal_semaphores,
-		.swapchainCount = 1,
+		.swapchainCount = ARRAY_SIZE(swapchains),
 		.pSwapchains = swapchains,
 		.pImageIndices = &image_index,
 		.pResults = NULL,
@@ -318,7 +318,7 @@ static uint8_t use_framebuffers(
 		}
 
 		VkClearValue clear_value = {0.0f, 0.0f, 0.0f, 0.0f};
-		VkClearValue clear_values[1] = {
+		VkClearValue clear_values[] = {
 			clear_value,
 		};
 		VkRenderPassBeginInfo render_pass_begin_info = {
@@ -333,7 +333,7 @@ static uint8_t use_framebuffers(
 				},
 				.extent = swapchain_image_extent,
 			},
-			.clearValueCount = 1,
+			.clearValueCount = ARRAY_SIZE(clear_values),
 			.pClearValues = clear_values,
 		};
 
@@ -391,7 +391,7 @@ static uint8_t use_shader_modules(
 		.pSpecializationInfo = NULL,
 	};
 
-	VkPipelineShaderStageCreateInfo pipeline_shader_stages[2] = {
+	VkPipelineShaderStageCreateInfo pipeline_shader_stages[] = {
 		pipeline_shader_vert_stage_create_info,
 		pipeline_shader_frag_stage_create_info,
 	};
@@ -422,7 +422,7 @@ static uint8_t use_shader_modules(
 		.minDepth = 0.0f,
 		.maxDepth = 1.0f,
 	};
-	VkViewport viewports[1] = { viewport };
+	VkViewport viewports[] = { viewport };
 
 	VkRect2D scissor = {
 		.offset = {
@@ -431,15 +431,15 @@ static uint8_t use_shader_modules(
 		},
 		.extent = swapchain_image_extent,
 	};
-	VkRect2D scissors[1] = { scissor };
+	VkRect2D scissors[] = { scissor };
 
 	VkPipelineViewportStateCreateInfo pipeline_viewport_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.viewportCount = 1,
+		.viewportCount = ARRAY_SIZE(viewports),
 		.pViewports = viewports,
-		.scissorCount = 1,
+		.scissorCount = ARRAY_SIZE(scissors),
 		.pScissors = scissors,
 	};
 
@@ -483,7 +483,7 @@ static uint8_t use_shader_modules(
 		                  | VK_COLOR_COMPONENT_B_BIT
 		                  | VK_COLOR_COMPONENT_A_BIT
 	};
-	VkPipelineColorBlendAttachmentState attachments[1] = {
+	VkPipelineColorBlendAttachmentState attachments[] = {
 		pipeline_color_blend_attachment_state,
 	};
 
@@ -493,7 +493,7 @@ static uint8_t use_shader_modules(
 		.flags = 0,
 		.logicOpEnable = VK_FALSE,
 		.logicOp = VK_LOGIC_OP_COPY,
-		.attachmentCount = 1,
+		.attachmentCount = ARRAY_SIZE(attachments),
 		.pAttachments = attachments,
 		.blendConstants = {
 			[0] = 0.0f,
@@ -503,7 +503,7 @@ static uint8_t use_shader_modules(
 		},
 	};
 
-	VkDynamicState dynamic_states[2] = {
+	VkDynamicState dynamic_states[] = {
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_LINE_WIDTH
 	};
@@ -511,7 +511,7 @@ static uint8_t use_shader_modules(
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.dynamicStateCount = 2,
+		.dynamicStateCount = ARRAY_SIZE(dynamic_states),
 		.pDynamicStates = dynamic_states,
 	};
 
@@ -546,7 +546,7 @@ static uint8_t use_shader_modules(
 		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 		.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 	};
-	VkAttachmentDescription color_attachment_descriptions[1] = {
+	VkAttachmentDescription color_attachment_descriptions[] = {
 		color_attachment_description,
 	};
 
@@ -554,7 +554,7 @@ static uint8_t use_shader_modules(
 		.attachment = 0,
 		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 	};
-	VkAttachmentReference color_attachments_references[1] = {
+	VkAttachmentReference color_attachments_references[] = {
 		color_attachment_reference,
 	};
 
@@ -563,14 +563,14 @@ static uint8_t use_shader_modules(
 		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 		.inputAttachmentCount = 0,
 		.pInputAttachments = NULL,
-		.colorAttachmentCount = 1,
+		.colorAttachmentCount = ARRAY_SIZE(color_attachments_references),
 		.pColorAttachments = color_attachments_references,
 		.pResolveAttachments = NULL,
 		.pDepthStencilAttachment = NULL,
 		.preserveAttachmentCount = 0,
 		.pPreserveAttachments = NULL,
 	};
-	VkSubpassDescription subpass_descriptions[1] = {
+	VkSubpassDescription subpass_descriptions[] = {
 		subpass_description,
 	};
 
@@ -584,7 +584,7 @@ static uint8_t use_shader_modules(
 		                 | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 		.dependencyFlags = 0,
 	};
-	VkSubpassDependency dependencies[1] = {
+	VkSubpassDependency dependencies[] = {
 		subpass_dependency,
 	};
 
@@ -592,11 +592,11 @@ static uint8_t use_shader_modules(
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.attachmentCount = 1,
+		.attachmentCount = ARRAY_SIZE(color_attachment_descriptions),
 		.pAttachments = color_attachment_descriptions,
-		.subpassCount = 1,
+		.subpassCount = ARRAY_SIZE(subpass_descriptions),
 		.pSubpasses = subpass_descriptions,
-		.dependencyCount = 1,
+		.dependencyCount = ARRAY_SIZE(dependencies),
 		.pDependencies = dependencies,
 	};
 
@@ -614,7 +614,7 @@ static uint8_t use_shader_modules(
 		.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.stageCount = 2,
+		.stageCount = ARRAY_SIZE(pipeline_shader_stages),
 		.pStages = pipeline_shader_stages,
 		.pVertexInputState = &pipeline_vertex_input_state_create_info,
 		.pInputAssemblyState = &pipeline_input_assembly_state_create_info,
@@ -639,7 +639,7 @@ static uint8_t use_shader_modules(
 	result = vkCreateGraphicsPipelines(
 		device,
 		VK_NULL_HANDLE,                  /* pipelineCache */
-		1,                               /* createInfoCount */
+		ARRAY_SIZE(graphics_pipeline_create_infos),
 		graphics_pipeline_create_infos,  /* pCreateInfos */
 		NULL,                            /* pAllocator */
 		graphics_pipelines               /* pPipelines */
@@ -663,7 +663,7 @@ static uint8_t use_shader_modules(
 	}
 
 	for (uint32_t i = 0; i < image_view_count; ++i) {
-		VkImageView attachments[1] = {
+		VkImageView attachments[] = {
 			image_views[i],
 		};
 		VkFramebufferCreateInfo framebuffer_create_info = {
@@ -671,7 +671,7 @@ static uint8_t use_shader_modules(
 			.pNext = NULL,
 			.flags = 0,
 			.renderPass = render_pass,
-			.attachmentCount = 1,
+			.attachmentCount = ARRAY_SIZE(attachments),
 			.pAttachments = attachments,
 			.width = swapchain_image_extent.width,
 			.height = swapchain_image_extent.height,
@@ -1006,15 +1006,15 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 	}
 	free(queue_family_properties);
 
-	const float queue_priorities[1] = {1.0f};
-	VkDeviceQueueCreateInfo device_queue_create_infos[1] = {
+	const float queue_priorities[] = {1.0f};
+	VkDeviceQueueCreateInfo device_queue_create_infos[] = {
 		{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = 0,
 			/* Assumption: there is only one queue family */
 			.queueFamilyIndex = 0,
-			.queueCount = 1,
+			.queueCount = ARRAY_SIZE(queue_priorities),
 			.pQueuePriorities = queue_priorities,
 		},
 	};
@@ -1037,18 +1037,18 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 		return ret;
 	}
 
-	const char *const enabled_extension_names[1] = {
+	const char *const enabled_extension_names[] = {
 		"VK_KHR_swapchain",
 	};
 	VkDeviceCreateInfo device_create_info = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.queueCreateInfoCount = 1,
+		.queueCreateInfoCount = ARRAY_SIZE(device_queue_create_infos),
 		.pQueueCreateInfos = device_queue_create_infos,
 		.enabledLayerCount = 0,
 		.ppEnabledLayerNames = NULL,
-		.enabledExtensionCount = 1,
+		.enabledExtensionCount = ARRAY_SIZE(enabled_extension_names),
 		.ppEnabledExtensionNames = enabled_extension_names,
 		.pEnabledFeatures = NULL,
 	};
