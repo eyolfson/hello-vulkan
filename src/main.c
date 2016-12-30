@@ -48,6 +48,7 @@ static VkExtent2D swapchain_image_extent = {
 	.height = HEIGHT
 };
 static VkFormat swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
+static VkColorSpaceKHR swapchain_image_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
 static const uint8_t LIBC_ERROR_BIT = 1 << 0;
 static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
@@ -886,7 +887,7 @@ uint8_t use_device(VkDevice device)
 		.surface = surface_khr,
 		.minImageCount = min_image_count,
 		.imageFormat = swapchain_image_format,
-		.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+		.imageColorSpace = swapchain_image_color_space,
 		.imageExtent = swapchain_image_extent,
 		.imageArrayLayers = 1,
 		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -946,7 +947,58 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 	min_image_count = surface_capabilities_khr.minImageCount;
 	current_transform = surface_capabilities_khr.currentTransform;
 
-	return 0;
+	VkBool32 supported;
+	result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, 0, surface_khr, &supported);
+	if (result != VK_SUCCESS) {
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+	if (supported == VK_FALSE) {
+		return APP_ERROR_BIT;
+	}
+
+	uint32_t surface_format_count;
+	result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
+	                                              surface_khr,
+	                                              &surface_format_count,
+	                                              NULL);
+	if (result != VK_SUCCESS) {
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+	VkSurfaceFormatKHR *surface_formats = malloc(
+		surface_format_count * sizeof(VkSurfaceFormatKHR)
+	);
+	if (surface_formats == NULL) {
+		return LIBC_ERROR_BIT;
+	}
+	result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
+	                                              surface_khr,
+	                                              &surface_format_count,
+	                                              surface_formats);
+	if (result != VK_SUCCESS) {
+		free(surface_formats);
+		int ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+	bool found = false;
+	for (uint32_t i = 0; i < surface_format_count; ++i) {
+		if ((surface_formats[i].format == swapchain_image_format)
+		    && (surface_formats[i].colorSpace == swapchain_image_color_space)) {
+			found = true;
+		}
+	}
+	free(surface_formats);
+
+	if (found) {
+		return 0;
+	}
+	else {
+		return APP_ERROR_BIT;
+	}
 }
 
 uint8_t physical_device_has_swapchain_extension(
