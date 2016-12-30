@@ -241,6 +241,15 @@ static uint8_t use_command_buffers(
 		return ret;
 	}
 
+	result = vkDeviceWaitIdle(device);
+	if (result != VK_SUCCESS) {
+		vkDestroySemaphore(device, render_finished_semaphore, NULL);
+		vkDestroySemaphore(device, image_available_semaphore, NULL);
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
 	vkDestroySemaphore(device, render_finished_semaphore, NULL);
 	vkDestroySemaphore(device, image_available_semaphore, NULL);
 	return 0;
