@@ -144,6 +144,72 @@ case x: \
 	}
 }
 
+static uint8_t draw_frame(
+	VkDevice device,
+	VkCommandBuffer *command_buffers,
+	VkSemaphore image_available_semaphore,
+	VkSemaphore render_finished_semaphore)
+{
+	VkResult result;
+	uint32_t image_index;
+	result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX,
+	                               image_available_semaphore,
+	                               VK_NULL_HANDLE, &image_index);
+	if (result != VK_SUCCESS) {
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	VkSemaphore wait_semaphores[] = { image_available_semaphore };
+	VkPipelineStageFlags wait_stages[] = {
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+	};
+	VkSemaphore signal_semaphores[] = { render_finished_semaphore };
+	VkCommandBuffer submit_command_buffers[] = {
+		command_buffers[image_index],
+	};
+	VkSubmitInfo submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.pNext = NULL,
+		.waitSemaphoreCount = ARRAY_SIZE(wait_semaphores),
+		.pWaitSemaphores = wait_semaphores,
+		.pWaitDstStageMask = wait_stages,
+		.commandBufferCount = ARRAY_SIZE(submit_command_buffers),
+		.pCommandBuffers = submit_command_buffers,
+		.signalSemaphoreCount = ARRAY_SIZE(signal_semaphores),
+		.pSignalSemaphores = signal_semaphores,
+	};
+	VkSubmitInfo submits[] = { submit_info };
+	result = vkQueueSubmit(queue, ARRAY_SIZE(submits), submits, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS) {
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	VkSwapchainKHR swapchains[] = { swapchain };
+	VkPresentInfoKHR present_info = {
+		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		.pNext = NULL,
+		.waitSemaphoreCount = ARRAY_SIZE(signal_semaphores),
+		.pWaitSemaphores = signal_semaphores,
+		.swapchainCount = ARRAY_SIZE(swapchains),
+		.pSwapchains = swapchains,
+		.pImageIndices = &image_index,
+		.pResults = NULL,
+	};
+
+	result = vkQueuePresentKHR(queue, &present_info);
+	if (result != VK_SUCCESS) {
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	return 0;
+}
+
 static uint8_t use_command_buffers(
 	VkDevice device,
 	VkCommandBuffer *command_buffers)
@@ -172,73 +238,12 @@ static uint8_t use_command_buffers(
 		return ret;
 	}
 
-	uint32_t image_index;
-	result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX,
-	                               image_available_semaphore,
-	                               VK_NULL_HANDLE, &image_index);
-	if (result != VK_SUCCESS) {
+	uint8_t ret = draw_frame(device, command_buffers,
+	                         image_available_semaphore,
+	                         render_finished_semaphore);
+	if (ret != 0) {
 		vkDestroySemaphore(device, render_finished_semaphore, NULL);
 		vkDestroySemaphore(device, image_available_semaphore, NULL);
-		uint8_t ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-
-	VkSemaphore wait_semaphores[] = {
-		image_available_semaphore,
-	};
-	VkPipelineStageFlags wait_stages[] = {
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-	};
-	VkSemaphore signal_semaphores[] = {
-		render_finished_semaphore,
-	};
-	VkCommandBuffer submit_command_buffers[] = {
-		command_buffers[image_index],
-	};
-	VkSubmitInfo submit_info = {
-		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-		.pNext = NULL,
-		.waitSemaphoreCount = ARRAY_SIZE(wait_semaphores),
-		.pWaitSemaphores = wait_semaphores,
-		.pWaitDstStageMask = wait_stages,
-		.commandBufferCount = ARRAY_SIZE(submit_command_buffers),
-		.pCommandBuffers = submit_command_buffers,
-		.signalSemaphoreCount = ARRAY_SIZE(signal_semaphores),
-		.pSignalSemaphores = signal_semaphores,
-	};
-	VkSubmitInfo submits[] = {
-		submit_info,
-	};
-	result = vkQueueSubmit(queue, ARRAY_SIZE(submits), submits, VK_NULL_HANDLE);
-	if (result != VK_SUCCESS) {
-		vkDestroySemaphore(device, render_finished_semaphore, NULL);
-		vkDestroySemaphore(device, image_available_semaphore, NULL);
-		uint8_t ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-
-	VkSwapchainKHR swapchains[] = {
-		swapchain,
-	};
-	VkPresentInfoKHR present_info = {
-		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-		.pNext = NULL,
-		.waitSemaphoreCount = ARRAY_SIZE(signal_semaphores),
-		.pWaitSemaphores = signal_semaphores,
-		.swapchainCount = ARRAY_SIZE(swapchains),
-		.pSwapchains = swapchains,
-		.pImageIndices = &image_index,
-		.pResults = NULL,
-	};
-
-	result = vkQueuePresentKHR(queue, &present_info);
-	if (result != VK_SUCCESS) {
-		vkDestroySemaphore(device, render_finished_semaphore, NULL);
-		vkDestroySemaphore(device, image_available_semaphore, NULL);
-		uint8_t ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
 		return ret;
 	}
 
@@ -246,14 +251,14 @@ static uint8_t use_command_buffers(
 	if (result != VK_SUCCESS) {
 		vkDestroySemaphore(device, render_finished_semaphore, NULL);
 		vkDestroySemaphore(device, image_available_semaphore, NULL);
-		uint8_t ret = VULKAN_ERROR_BIT;
+		ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
 	}
 
 	vkDestroySemaphore(device, render_finished_semaphore, NULL);
 	vkDestroySemaphore(device, image_available_semaphore, NULL);
-	return 0;
+	return ret;
 }
 
 static uint8_t use_framebuffers(
