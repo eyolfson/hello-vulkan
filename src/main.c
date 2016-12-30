@@ -37,6 +37,9 @@
 static const int16_t WIDTH = 640;
 static const int16_t HEIGHT = 480;
 
+static VkQueue queue;
+static VkSwapchainKHR swapchain;
+
 static uint32_t min_image_count;
 static VkSurfaceTransformFlagBitsKHR current_transform;
 
@@ -138,6 +141,86 @@ case x: \
 	default:
 		return APP_ERROR_BIT;
 	}
+}
+
+static uint8_t use_command_buffers(
+	VkDevice device,
+	VkCommandBuffer *command_buffers)
+{
+	VkSemaphore image_available_semaphore;
+	VkSemaphore render_finished_semaphore;
+
+	VkSemaphoreCreateInfo semaphore_create_info = {
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+	};
+	VkResult result;
+	result = vkCreateSemaphore(device, &semaphore_create_info, NULL, &image_available_semaphore);
+	if (result != VK_SUCCESS) {
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	result = vkCreateSemaphore(device, &semaphore_create_info, NULL, &render_finished_semaphore);
+	if (result != VK_SUCCESS) {
+		vkDestroySemaphore(device, image_available_semaphore, NULL);
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	uint32_t image_index;
+	result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX,
+	                               image_available_semaphore,
+	                               VK_NULL_HANDLE, &image_index);
+	if (result != VK_SUCCESS) {
+		vkDestroySemaphore(device, render_finished_semaphore, NULL);
+		vkDestroySemaphore(device, image_available_semaphore, NULL);
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	VkSemaphore wait_semaphores[1] = {
+		image_available_semaphore,
+	};
+	VkPipelineStageFlags wait_stages[1] = {
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+	};
+	VkSemaphore signal_semaphores[1] = {
+		render_finished_semaphore,
+	};
+	VkCommandBuffer submit_command_buffers[1] = {
+		command_buffers[image_index],
+	};
+	VkSubmitInfo submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.pNext = NULL,
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = wait_semaphores,
+		.pWaitDstStageMask = wait_stages,
+		.commandBufferCount = 1,
+		.pCommandBuffers = submit_command_buffers,
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores = signal_semaphores,
+	};
+	VkSubmitInfo submits[1] = {
+		submit_info,
+	};
+	result = vkQueueSubmit(queue, 1, submits, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS) {
+		vkDestroySemaphore(device, render_finished_semaphore, NULL);
+		vkDestroySemaphore(device, image_available_semaphore, NULL);
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
+	vkDestroySemaphore(device, render_finished_semaphore, NULL);
+	vkDestroySemaphore(device, image_available_semaphore, NULL);
+	return 0;
 }
 
 static uint8_t use_framebuffers(
@@ -249,11 +332,13 @@ static uint8_t use_framebuffers(
 		}
 	}
 
+	uint8_t ret = use_command_buffers(device, command_buffers);
+
 	vkFreeCommandBuffers(device, command_pool, swapchain_framebuffer_count,
 	                     command_buffers);
 	free(command_buffers);
 	vkDestroyCommandPool(device, command_pool, NULL);
-	return 0;
+	return ret;
 }
 
 static uint8_t use_shader_modules(
@@ -466,6 +551,20 @@ static uint8_t use_shader_modules(
 		subpass_description,
 	};
 
+	VkSubpassDependency subpass_dependency = {
+		.srcSubpass = VK_SUBPASS_EXTERNAL,
+		.dstSubpass = 0,
+		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		.srcAccessMask = 0,
+		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+		                 | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.dependencyFlags = 0,
+	};
+	VkSubpassDependency dependencies[1] = {
+		subpass_dependency,
+	};
+
 	VkRenderPassCreateInfo render_pass_create_info = {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 		.pNext = NULL,
@@ -474,8 +573,8 @@ static uint8_t use_shader_modules(
 		.pAttachments = color_attachment_descriptions,
 		.subpassCount = 1,
 		.pSubpasses = subpass_descriptions,
-		.dependencyCount = 0,
-		.pDependencies = NULL,
+		.dependencyCount = 1,
+		.pDependencies = dependencies,
 	};
 
 	VkRenderPass render_pass;
@@ -736,7 +835,6 @@ uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 
 uint8_t use_device(VkDevice device)
 {
-	VkQueue queue;
 	/* Assumption: there is only one queue family */
 	uint32_t queue_family_index = 0;
 	uint32_t queue_index = 0;
@@ -763,7 +861,6 @@ uint8_t use_device(VkDevice device)
 		.oldSwapchain = VK_NULL_HANDLE,
 	};
 
-	VkSwapchainKHR swapchain;
 	VkResult result = vkCreateSwapchainKHR(
 		device,
 		&swapchain_create_info,
