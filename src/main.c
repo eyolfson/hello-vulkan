@@ -218,6 +218,29 @@ static uint8_t use_command_buffers(
 		return ret;
 	}
 
+	VkSwapchainKHR swapchains[1] = {
+		swapchain,
+	};
+	VkPresentInfoKHR present_info = {
+		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		.pNext = NULL,
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = signal_semaphores,
+		.swapchainCount = 1,
+		.pSwapchains = swapchains,
+		.pImageIndices = &image_index,
+		.pResults = NULL,
+	};
+
+	result = vkQueuePresentKHR(queue, &present_info);
+	if (result != VK_SUCCESS) {
+		vkDestroySemaphore(device, render_finished_semaphore, NULL);
+		vkDestroySemaphore(device, image_available_semaphore, NULL);
+		uint8_t ret = VULKAN_ERROR_BIT;
+		ret |= print_result(result);
+		return ret;
+	}
+
 	vkDestroySemaphore(device, render_finished_semaphore, NULL);
 	vkDestroySemaphore(device, image_available_semaphore, NULL);
 	return 0;
@@ -818,6 +841,9 @@ uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 		result = vkCreateImageView(device, &image_view_create_info,
 		                           NULL, &(image_views[i]));
 		if (result != VK_SUCCESS) {
+			for (uint32_t j = 0; j < i; ++j) {
+				vkDestroyImageView(device, image_views[j], NULL);
+			}
 			free(image_views);
 			free(swapchain_images);
 			int ret = VULKAN_ERROR_BIT;
@@ -828,6 +854,9 @@ uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 
 	int ret = use_image_views(device, image_views, swapchain_image_count);
 
+	for (uint32_t i = 0; i < swapchain_image_count; ++i) {
+		vkDestroyImageView(device, image_views[i], NULL);
+	}
 	free(image_views);
 	free(swapchain_images);
 	return ret;
@@ -1123,6 +1152,7 @@ uint8_t use_instance(VkInstance instance)
 
 	int ret = use_physical_devices(physical_devices, physical_device_count);
 
+	vkDestroySurfaceKHR(instance, surface_khr, NULL);
 	free(physical_devices);
 	return ret;
 }
@@ -1257,6 +1287,9 @@ int main(int argc, char **argv)
 		return ret;
 	}
 
+	const char *enabled_layer_names[] = {
+		"VK_LAYER_LUNARG_standard_validation",
+	};
 	const char *enabled_extension_names[] = {
 		"VK_KHR_surface",
 		"VK_KHR_wayland_surface",
@@ -1266,8 +1299,8 @@ int main(int argc, char **argv)
 		.pNext = NULL,
 		.flags = 0,
 		.pApplicationInfo = NULL,
-		.enabledLayerCount = 0,
-		.ppEnabledLayerNames = NULL,
+		.enabledLayerCount = ARRAY_SIZE(enabled_layer_names),
+		.ppEnabledLayerNames = enabled_layer_names,
 		.enabledExtensionCount = ARRAY_SIZE(enabled_extension_names),
 		.ppEnabledExtensionNames = enabled_extension_names,
 	};
