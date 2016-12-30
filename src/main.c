@@ -465,6 +465,7 @@ static uint8_t use_shader_modules(
 		.depthBiasConstantFactor = 0.0f,
 		.depthBiasClamp = 0.0f,
 		.depthBiasSlopeFactor = 0.0f,
+		.lineWidth = 1.0f,
 	};
 
 	VkPipelineMultisampleStateCreateInfo pipeline_multisample_state_create_info = {
