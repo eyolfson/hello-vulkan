@@ -238,13 +238,18 @@ static uint8_t use_command_buffers(
 		return ret;
 	}
 
-	uint8_t ret = draw_frame(device, command_buffers,
-	                         image_available_semaphore,
-	                         render_finished_semaphore);
-	if (ret != 0) {
-		vkDestroySemaphore(device, render_finished_semaphore, NULL);
-		vkDestroySemaphore(device, image_available_semaphore, NULL);
-		return ret;
+	uint32_t frames_left = 150;
+	uint8_t ret;
+	while (frames_left != 0) {
+		ret = draw_frame(device, command_buffers,
+		                 image_available_semaphore,
+		                 render_finished_semaphore);
+		if (ret != 0) {
+			vkDestroySemaphore(device, render_finished_semaphore, NULL);
+			vkDestroySemaphore(device, image_available_semaphore, NULL);
+			return ret;
+		}
+		--frames_left;
 	}
 
 	result = vkDeviceWaitIdle(device);
@@ -1269,6 +1274,45 @@ static struct zxdg_shell_v6_listener wl_shell_listener = {
 	.ping = wl_shell_ping,
 };
 
+static void xdg_shell_surface_configure(void *data,
+                                       struct zxdg_surface_v6 *zxdg_surface_v6,
+                                       uint32_t serial)
+{
+	(void) data;
+
+	zxdg_surface_v6_ack_configure(zxdg_surface_v6, serial);
+};
+
+static struct zxdg_surface_v6_listener xdg_shell_surface_listener = {
+	.configure = xdg_shell_surface_configure,
+};
+
+static void xdg_toplevel_configure(void *data,
+                                   struct zxdg_toplevel_v6 *zxdg_toplevel_v6,
+                                   int32_t width,
+                                   int32_t height,
+                                   struct wl_array *states)
+{
+	(void) data;
+	(void) zxdg_toplevel_v6;
+	(void) width;
+	(void) height;
+	(void) states;
+
+}
+
+static void xdg_toplevel_close(void *data,
+                               struct zxdg_toplevel_v6 *zxdg_toplevel_v6)
+{
+	(void) data;
+	(void) zxdg_toplevel_v6;
+}
+
+static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
+	.configure = xdg_toplevel_configure,
+	.close = xdg_toplevel_close,
+};
+
 static int wayland_init()
 {
 	wayland.display = wl_display_connect(NULL);
@@ -1299,15 +1343,19 @@ static int wayland_init()
 	if (wayland.shell_surface == NULL) {
 		return WAYLAND_ERROR_BIT;
 	}
+	zxdg_surface_v6_add_listener(wayland.shell_surface, &xdg_shell_surface_listener, NULL);
 
 	wayland.toplevel = zxdg_surface_v6_get_toplevel(wayland.shell_surface);
 	if (wayland.toplevel == NULL) {
 		return WAYLAND_ERROR_BIT;
 	}
+	zxdg_toplevel_v6_add_listener(wayland.toplevel, &xdg_toplevel_listener, NULL);
 
+	zxdg_toplevel_v6_set_title(wayland.toplevel, "Hello Vulkan");
+	zxdg_toplevel_v6_set_app_id(wayland.toplevel, "io.eyl.HelloVulkan");
 	zxdg_surface_v6_set_window_geometry(wayland.shell_surface,
 	                                    0, 0, WIDTH, HEIGHT);
-	zxdg_toplevel_v6_set_title(wayland.toplevel, "Hello Vulkan");
+	wl_surface_commit(wayland.surface);
 
 	return 0;
 }
