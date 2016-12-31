@@ -4,8 +4,8 @@ A quick demo of the Vulkan API, using Wayland.
 
 ## Graphics
 
-- [ ] Draw a triangle.
+- [x] Draw a triangle
 
 ## Compute
 
-- [ ] N-body simulation.
+- [ ] N-body simulation
