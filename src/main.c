@@ -35,8 +35,8 @@
 #include <time.h>
 #include <unistd.h>
 
-static const int16_t WIDTH = 640;
-static const int16_t HEIGHT = 480;
+#define WIDTH 640
+#define HEIGHT 480
 
 static VkQueue queue;
 static VkSwapchainKHR swapchain;
