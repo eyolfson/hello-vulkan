@@ -88,7 +88,6 @@ struct wayland {
 	struct wl_display *display;
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
-	struct wl_shm *shm;
 	struct zxdg_shell_v6 *shell;
 	struct wl_surface *surface;
 	struct zxdg_surface_v6 *shell_surface;
