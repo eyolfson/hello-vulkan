@@ -248,6 +248,8 @@ static uint8_t use_command_buffers(
 		return LIBC_ERROR_BIT;
 	}
 	while (frames_left != 0) {
+		wl_display_roundtrip(wayland.display);
+
 		ret = draw_frame(device, command_buffers,
 		                 image_available_semaphore,
 		                 render_finished_semaphore);
@@ -1320,7 +1322,6 @@ static void xdg_toplevel_configure(void *data,
 	(void) width;
 	(void) height;
 	(void) states;
-
 }
 
 static void xdg_toplevel_close(void *data,
