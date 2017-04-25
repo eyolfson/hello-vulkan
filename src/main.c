@@ -981,7 +981,8 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 	current_transform = surface_capabilities_khr.currentTransform;
 
 	VkBool32 supported;
-	result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, 0, surface_khr, &supported);
+	result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, 0,
+	                                              surface_khr, &supported);
 	if (result != VK_SUCCESS) {
 		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
@@ -1020,7 +1021,8 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 	bool found = false;
 	for (uint32_t i = 0; i < surface_format_count; ++i) {
 		if ((surface_formats[i].format == swapchain_image_format)
-		    && (surface_formats[i].colorSpace == swapchain_image_color_space)) {
+		    && (surface_formats[i].colorSpace
+		        == swapchain_image_color_space)) {
 			found = true;
 		}
 	}
@@ -1042,10 +1044,8 @@ uint8_t physical_device_has_swapchain_extension(
 
 	VkResult result;
 	uint32_t extension_property_count;
-	result = vkEnumerateDeviceExtensionProperties(physical_device,
-	                                              NULL,
-	                                              &extension_property_count,
-	                                              NULL);
+	result = vkEnumerateDeviceExtensionProperties(
+		physical_device, NULL, &extension_property_count, NULL);
 	if (result != VK_SUCCESS) {
 		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
@@ -1070,7 +1070,8 @@ uint8_t physical_device_has_swapchain_extension(
 	}
 
 	for (uint32_t i = 0; i < extension_property_count; ++i) {
-		if (strcmp(extension_properties[i].extensionName, "VK_KHR_swapchain") == 0) {
+		if (strcmp(extension_properties[i].extensionName,
+		           "VK_KHR_swapchain") == 0) {
 			*has_swapchain_extension = true;
 		}
 	}
@@ -1097,6 +1098,8 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 	                                         queue_family_properties);
 	if (queue_family_property_count != 1) {
 		/* Assumption: there is only one queue family */
+		/* TODO: This is broken and needs fixing */
+		printf("queue_family_property_count != 1\n");
 		return APP_ERROR_BIT;
 	}
 	free(queue_family_properties);
@@ -1190,9 +1193,9 @@ uint8_t use_physical_devices(VkPhysicalDevice *physical_devices,
 		printf("Using 0: %s\n", properties.deviceName);
 	}
 
-	use_physical_device(physical_devices[0]);
+	uint8_t ret = use_physical_device(physical_devices[0]);
 
-	return 0;
+	return ret;
 }
 
 uint8_t use_instance(VkInstance instance)
