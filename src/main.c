@@ -38,6 +38,8 @@
 #define WIDTH 640
 #define HEIGHT 480
 
+static uint32_t graphics_queue_family_index;
+
 static VkQueue queue;
 static VkSwapchainKHR swapchain;
 
@@ -300,8 +302,7 @@ static uint8_t use_framebuffers(
 		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		/* Assumption: there is only one queue family */
-		.queueFamilyIndex = 0,
+		.queueFamilyIndex = graphics_queue_family_index,
 	};
 
 	VkResult result;
@@ -908,8 +909,7 @@ uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 
 uint8_t use_device(VkDevice device)
 {
-	/* Assumption: there is only one queue family */
-	uint32_t queue_family_index = 0;
+	uint32_t queue_family_index = graphics_queue_family_index;
 	uint32_t queue_index = 0;
 	vkGetDeviceQueue(device, queue_family_index, queue_index, &queue);
 
@@ -1096,10 +1096,16 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
 	                                         &queue_family_property_count,
 	                                         queue_family_properties);
-	if (queue_family_property_count != 1) {
-		/* Assumption: there is only one queue family */
-		/* TODO: This is broken and needs fixing */
-		printf("queue_family_property_count != 1\n");
+	bool graphics_found = false;
+	for (uint32_t i = 0; i < queue_family_property_count; ++i) {
+		if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+			graphics_queue_family_index = i;
+			graphics_found = true;
+			break;
+		}
+	}
+	if (!graphics_found) {
+		printf("Cannot find graphics queue family index\n");
 		return APP_ERROR_BIT;
 	}
 	free(queue_family_properties);
@@ -1110,8 +1116,7 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = 0,
-			/* Assumption: there is only one queue family */
-			.queueFamilyIndex = 0,
+			.queueFamilyIndex = graphics_queue_family_index,
 			.queueCount = ARRAY_SIZE(queue_priorities),
 			.pQueuePriorities = queue_priorities,
 		},
