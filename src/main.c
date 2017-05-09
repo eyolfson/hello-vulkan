@@ -32,11 +32,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <time.h>
 #include <unistd.h>
 
 #define WIDTH 640
 #define HEIGHT 480
+
+static bool running = true;
 
 static uint32_t graphics_queue_family_index;
 
@@ -240,15 +241,8 @@ static uint8_t use_command_buffers(
 		return ret;
 	}
 
-	uint32_t frames_left = 300;
 	uint8_t ret;
-	struct timespec ts_start;
-	if (clock_gettime(CLOCK_MONOTONIC, &ts_start) != 0) {
-		vkDestroySemaphore(device, render_finished_semaphore, NULL);
-		vkDestroySemaphore(device, image_available_semaphore, NULL);
-		return LIBC_ERROR_BIT;
-	}
-	while (frames_left != 0) {
+	while (running) {
 		wl_display_roundtrip(wayland.display);
 
 		ret = draw_frame(device, command_buffers,
@@ -259,23 +253,7 @@ static uint8_t use_command_buffers(
 			vkDestroySemaphore(device, image_available_semaphore, NULL);
 			return ret;
 		}
-		--frames_left;
 	}
-	struct timespec ts_end;
-	if (clock_gettime(CLOCK_MONOTONIC, &ts_end) != 0) {
-		vkDestroySemaphore(device, render_finished_semaphore, NULL);
-		vkDestroySemaphore(device, image_available_semaphore, NULL);
-		return LIBC_ERROR_BIT;
-	}
-	double sec_diff = (double) (ts_end.tv_sec - ts_start.tv_sec);
-	if (ts_end.tv_nsec >= ts_start.tv_nsec) {
-		sec_diff += (double) (ts_end.tv_nsec - ts_start.tv_nsec) / 1000000000.0;
-	}
-	else {
-		sec_diff -= 1.0;
-		sec_diff += ((1000000000.0 + (double) (ts_end.tv_nsec - ts_start.tv_nsec)) / 1000000000.0);
-	}
-	printf("FPS = %lf\n", 300.0 / sec_diff);
 
 	result = vkDeviceWaitIdle(device);
 	if (result != VK_SUCCESS) {
