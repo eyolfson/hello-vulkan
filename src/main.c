@@ -95,6 +95,8 @@ struct wayland {
 	struct wl_surface *surface;
 	struct zxdg_surface_v6 *shell_surface;
 	struct zxdg_toplevel_v6 *toplevel;
+	struct wl_seat *seat;
+	struct wl_keyboard *keyboard;
 };
 
 static struct wayland wayland = {
@@ -105,6 +107,8 @@ static struct wayland wayland = {
 	.surface = NULL,
 	.shell_surface = NULL,
 	.toplevel = NULL,
+	.seat = NULL,
+	.keyboard = NULL,
 };
 
 static VkSurfaceKHR surface_khr;
@@ -1088,8 +1092,8 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 	}
 	free(queue_family_properties);
 
-	const float queue_priorities[] = {1.0f};
-	VkDeviceQueueCreateInfo device_queue_create_infos[] = {
+	const float queue_priorities[1] = {1.0f};
+	VkDeviceQueueCreateInfo device_queue_create_infos[1] = {
 		{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.pNext = NULL,
@@ -1109,7 +1113,7 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 		return ret;
 	}
 	if (!has_swapchain_extension) {
-		/* Graphics card cant present image directly to screen */
+		/* Graphics card can't present image directly to screen */
 		return APP_ERROR_BIT;
 	}
 
@@ -1118,7 +1122,7 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 		return ret;
 	}
 
-	const char *const enabled_extension_names[] = {
+	const char *const enabled_extension_names[1] = {
 		"VK_KHR_swapchain",
 	};
 	VkDeviceCreateInfo device_create_info = {
@@ -1254,6 +1258,10 @@ static void wl_registry_global(void *data,
 		wayland.shell = wl_registry_bind(
 			wl_registry, name, &zxdg_shell_v6_interface, version);
 	}
+	else if (strcmp(interface, wl_seat_interface.name) == 0) {
+		wayland.seat = wl_registry_bind(
+			wl_registry, name, &wl_seat_interface, version);
+	}
 }
 
 static void wl_registry_global_remove(void *data,
@@ -1321,6 +1329,97 @@ static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
 	.close = xdg_toplevel_close,
 };
 
+static void wl_keyboard_keymap(void *data,
+                               struct wl_keyboard *wl_keyboard,
+                               uint32_t format,
+                               int32_t fd,
+                               uint32_t size)
+{
+	(void) (data);
+	(void) (wl_keyboard);
+	(void) (format);
+	(void) (fd);
+	(void) (size);
+}
+
+static void wl_keyboard_enter(void *data,
+                              struct wl_keyboard *wl_keyboard,
+                              uint32_t serial,
+                              struct wl_surface *surface,
+                              struct wl_array *keys)
+{
+	(void) (data);
+	(void) (wl_keyboard);
+	(void) (serial);
+	(void) (surface);
+	(void) (keys);
+}
+
+static void wl_keyboard_leave(void *data,
+                              struct wl_keyboard *wl_keyboard,
+                              uint32_t serial,
+                              struct wl_surface *surface)
+{
+	(void) (data);
+	(void) (wl_keyboard);
+	(void) (serial);
+	(void) (surface);
+}
+
+static void wl_keyboard_key(void *data,
+                            struct wl_keyboard *wl_keyboard,
+                            uint32_t serial,
+                            uint32_t time,
+                            uint32_t key,
+                            uint32_t state)
+{
+	(void) (data);
+	(void) (wl_keyboard);
+	(void) (serial);
+	(void) (time);
+
+	if ((key == 16) && (state == 0)) {
+		running = false;
+	}
+}
+
+static void wl_keyboard_modifiers(void *data,
+                                  struct wl_keyboard *wl_keyboard,
+                                  uint32_t serial,
+                                  uint32_t mods_depressed,
+                                  uint32_t mods_latched,
+                                  uint32_t mods_locked,
+                                  uint32_t group)
+{
+	(void) (data);
+	(void) (wl_keyboard);
+	(void) (serial);
+	(void) (mods_depressed);
+	(void) (mods_latched);
+	(void) (mods_locked);
+	(void) (group);
+}
+
+static void wl_keyboard_repeat_info(void *data,
+                                    struct wl_keyboard *wl_keyboard,
+                                    int32_t rate,
+                                    int32_t delay)
+{
+	(void) (data);
+	(void) (wl_keyboard);
+	(void) (rate);
+	(void) (delay);
+}
+
+struct wl_keyboard_listener keyboard_listener = {
+	.keymap = wl_keyboard_keymap,
+	.enter = wl_keyboard_enter,
+	.leave = wl_keyboard_leave,
+	.key = wl_keyboard_key,
+	.modifiers = wl_keyboard_modifiers,
+	.repeat_info = wl_keyboard_repeat_info,
+};
+
 static int wayland_init()
 {
 	wayland.display = wl_display_connect(NULL);
@@ -1335,9 +1434,17 @@ static int wayland_init()
 
 	wl_registry_add_listener(wayland.registry, &wl_registry_listener, NULL);
 	wl_display_roundtrip(wayland.display);
-	if ((wayland.compositor == NULL) || (wayland.shell == NULL)) {
+	if ((wayland.compositor == NULL)
+	    || (wayland.shell == NULL)
+	    || (wayland.seat == NULL)) {
 		return WAYLAND_ERROR_BIT;
 	}
+
+	wayland.keyboard = wl_seat_get_keyboard(wayland.seat);
+	if (wayland.keyboard == NULL) {
+		return WAYLAND_ERROR_BIT;
+	}
+	wl_keyboard_add_listener(wayland.keyboard, &keyboard_listener, NULL);
 
 	zxdg_shell_v6_add_listener(wayland.shell, &wl_shell_listener, NULL);
 
@@ -1370,6 +1477,14 @@ static int wayland_init()
 
 static void wayland_fini()
 {
+	if (wayland.keyboard != NULL) {
+		wl_keyboard_destroy(wayland.keyboard);
+		wayland.keyboard = NULL;
+	}
+	if (wayland.seat != NULL) {
+		wl_seat_destroy(wayland.seat);
+		wayland.seat = NULL;
+	}
 	if (wayland.toplevel != NULL) {
 		zxdg_toplevel_v6_destroy(wayland.toplevel);
 		wayland.toplevel = NULL;
@@ -1411,7 +1526,6 @@ int main(int argc, char **argv)
 	}
 
 	const char *enabled_layer_names[] = {
-		"VK_LAYER_LUNARG_standard_validation",
 	};
 	const char *enabled_extension_names[] = {
 		"VK_KHR_surface",
