@@ -1278,17 +1278,17 @@ static struct wl_registry_listener wl_registry_listener = {
 	.global_remove = wl_registry_global_remove,
 };
 
-static void wl_shell_ping(void *data,
-                          struct zxdg_shell_v6 *shell,
-                          uint32_t serial)
+static void xdg_shell_ping(void *data,
+                           struct zxdg_shell_v6 *shell,
+                           uint32_t serial)
 {
 	(void) data;
 
 	zxdg_shell_v6_pong(shell, serial);
 }
 
-static struct zxdg_shell_v6_listener wl_shell_listener = {
-	.ping = wl_shell_ping,
+static struct zxdg_shell_v6_listener shell_listener = {
+	.ping = xdg_shell_ping,
 };
 
 static void xdg_shell_surface_configure(void *data,
@@ -1446,7 +1446,7 @@ static int wayland_init()
 	}
 	wl_keyboard_add_listener(wayland.keyboard, &keyboard_listener, NULL);
 
-	zxdg_shell_v6_add_listener(wayland.shell, &wl_shell_listener, NULL);
+	zxdg_shell_v6_add_listener(wayland.shell, &shell_listener, NULL);
 
 	wayland.surface = wl_compositor_create_surface(wayland.compositor);
 	if (wayland.surface == NULL) {
