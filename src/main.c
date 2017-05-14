@@ -1330,51 +1330,51 @@ static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
 };
 
 static void wl_keyboard_keymap(void *data,
-                               struct wl_keyboard *wl_keyboard,
+                               struct wl_keyboard *keyboard,
                                uint32_t format,
                                int32_t fd,
                                uint32_t size)
 {
 	(void) (data);
-	(void) (wl_keyboard);
+	(void) (keyboard);
 	(void) (format);
 	(void) (fd);
 	(void) (size);
 }
 
 static void wl_keyboard_enter(void *data,
-                              struct wl_keyboard *wl_keyboard,
+                              struct wl_keyboard *keyboard,
                               uint32_t serial,
                               struct wl_surface *surface,
                               struct wl_array *keys)
 {
 	(void) (data);
-	(void) (wl_keyboard);
+	(void) (keyboard);
 	(void) (serial);
 	(void) (surface);
 	(void) (keys);
 }
 
 static void wl_keyboard_leave(void *data,
-                              struct wl_keyboard *wl_keyboard,
+                              struct wl_keyboard *keyboard,
                               uint32_t serial,
                               struct wl_surface *surface)
 {
 	(void) (data);
-	(void) (wl_keyboard);
+	(void) (keyboard);
 	(void) (serial);
 	(void) (surface);
 }
 
 static void wl_keyboard_key(void *data,
-                            struct wl_keyboard *wl_keyboard,
+                            struct wl_keyboard *keyboard,
                             uint32_t serial,
                             uint32_t time,
                             uint32_t key,
                             uint32_t state)
 {
 	(void) (data);
-	(void) (wl_keyboard);
+	(void) (keyboard);
 	(void) (serial);
 	(void) (time);
 
@@ -1384,7 +1384,7 @@ static void wl_keyboard_key(void *data,
 }
 
 static void wl_keyboard_modifiers(void *data,
-                                  struct wl_keyboard *wl_keyboard,
+                                  struct wl_keyboard *keyboard,
                                   uint32_t serial,
                                   uint32_t mods_depressed,
                                   uint32_t mods_latched,
@@ -1392,7 +1392,7 @@ static void wl_keyboard_modifiers(void *data,
                                   uint32_t group)
 {
 	(void) (data);
-	(void) (wl_keyboard);
+	(void) (keyboard);
 	(void) (serial);
 	(void) (mods_depressed);
 	(void) (mods_latched);
@@ -1401,12 +1401,12 @@ static void wl_keyboard_modifiers(void *data,
 }
 
 static void wl_keyboard_repeat_info(void *data,
-                                    struct wl_keyboard *wl_keyboard,
+                                    struct wl_keyboard *keyboard,
                                     int32_t rate,
                                     int32_t delay)
 {
 	(void) (data);
-	(void) (wl_keyboard);
+	(void) (keyboard);
 	(void) (rate);
 	(void) (delay);
 }
