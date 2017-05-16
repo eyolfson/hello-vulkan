@@ -363,8 +363,12 @@ static uint8_t use_framebuffers(
 			.pClearValues = clear_values,
 		};
 
-		vkCmdBeginRenderPass(command_buffers[i], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(command_buffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+		vkCmdBeginRenderPass(command_buffers[i],
+		                     &render_pass_begin_info,
+		                     VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(command_buffers[i],
+		                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+		                  graphics_pipeline);
 		vkCmdDraw(command_buffers[i], 3, 1, 0, 0);
 		vkCmdEndRenderPass(command_buffers[i]);
 
@@ -397,7 +401,8 @@ static uint8_t use_shader_modules(
 	VkShaderModule frag_shader_module,
 	VkShaderModule vert_shader_module)
 {
-	VkPipelineShaderStageCreateInfo pipeline_shader_frag_stage_create_info = {
+	VkPipelineShaderStageCreateInfo
+	pipeline_shader_frag_stage_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -407,7 +412,8 @@ static uint8_t use_shader_modules(
 		.pSpecializationInfo = NULL,
 	};
 
-	VkPipelineShaderStageCreateInfo pipeline_shader_vert_stage_create_info = {
+	VkPipelineShaderStageCreateInfo
+	pipeline_shader_vert_stage_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -422,7 +428,8 @@ static uint8_t use_shader_modules(
 		pipeline_shader_frag_stage_create_info,
 	};
 
-	VkPipelineVertexInputStateCreateInfo pipeline_vertex_input_state_create_info = {
+	VkPipelineVertexInputStateCreateInfo
+	pipeline_vertex_input_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -432,7 +439,8 @@ static uint8_t use_shader_modules(
 		.pVertexAttributeDescriptions = NULL,
 	};
 
-	VkPipelineInputAssemblyStateCreateInfo pipeline_input_assembly_state_create_info = {
+	VkPipelineInputAssemblyStateCreateInfo
+	pipeline_input_assembly_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -459,7 +467,8 @@ static uint8_t use_shader_modules(
 	};
 	VkRect2D scissors[] = { scissor };
 
-	VkPipelineViewportStateCreateInfo pipeline_viewport_state_create_info = {
+	VkPipelineViewportStateCreateInfo
+	pipeline_viewport_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -469,7 +478,8 @@ static uint8_t use_shader_modules(
 		.pScissors = scissors,
 	};
 
-	VkPipelineRasterizationStateCreateInfo pipeline_rasterization_state_create_info = {
+	VkPipelineRasterizationStateCreateInfo
+	pipeline_rasterization_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -485,7 +495,8 @@ static uint8_t use_shader_modules(
 		.lineWidth = 1.0f,
 	};
 
-	VkPipelineMultisampleStateCreateInfo pipeline_multisample_state_create_info = {
+	VkPipelineMultisampleStateCreateInfo
+	pipeline_multisample_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -497,7 +508,8 @@ static uint8_t use_shader_modules(
 		.alphaToOneEnable = VK_FALSE,
 	};
 
-	VkPipelineColorBlendAttachmentState pipeline_color_blend_attachment_state = {
+	VkPipelineColorBlendAttachmentState
+	pipeline_color_blend_attachment_state = {
 		.blendEnable = VK_FALSE,
 		.srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
 		.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
@@ -514,7 +526,8 @@ static uint8_t use_shader_modules(
 		pipeline_color_blend_attachment_state,
 	};
 
-	VkPipelineColorBlendStateCreateInfo pipeline_color_blend_state_create_info = {
+	VkPipelineColorBlendStateCreateInfo
+	pipeline_color_blend_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -534,7 +547,8 @@ static uint8_t use_shader_modules(
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_LINE_WIDTH
 	};
-	VkPipelineDynamicStateCreateInfo pipeline_dynamic_state_create_info = {
+	VkPipelineDynamicStateCreateInfo
+	pipeline_dynamic_state_create_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
@@ -1040,10 +1054,9 @@ uint8_t physical_device_has_swapchain_extension(
 	if (extension_properties == NULL) {
 		return LIBC_ERROR_BIT;
 	}
-	result = vkEnumerateDeviceExtensionProperties(physical_device,
-	                                              NULL,
-	                                              &extension_property_count,
-	                                              extension_properties);
+	result = vkEnumerateDeviceExtensionProperties(
+		physical_device, NULL, &extension_property_count,
+		extension_properties);
 	if (result != VK_SUCCESS) {
 		free(extension_properties);
 		int ret = VULKAN_ERROR_BIT;
@@ -1080,7 +1093,8 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 	                                         queue_family_properties);
 	bool graphics_found = false;
 	for (uint32_t i = 0; i < queue_family_property_count; ++i) {
-		if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+		if (queue_family_properties[i].queueFlags
+		    & VK_QUEUE_GRAPHICS_BIT) {
 			graphics_queue_family_index = i;
 			graphics_found = true;
 			break;
@@ -1235,7 +1249,8 @@ uint8_t use_instance(VkInstance instance)
 		return ret;
 	}
 
-	int ret = use_physical_devices(physical_devices, physical_device_count);
+	int ret = use_physical_devices(physical_devices,
+	                               physical_device_count);
 
 	vkDestroySurfaceKHR(instance, surface_khr, NULL);
 	free(physical_devices);
