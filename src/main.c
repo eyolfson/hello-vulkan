@@ -1242,45 +1242,45 @@ uint8_t use_instance(VkInstance instance)
 	return ret;
 }
 
-static void wl_registry_global(void *data,
-                               struct wl_registry *wl_registry,
-                               uint32_t name,
-                               const char *interface,
-                               uint32_t version)
+static void registry_global(void *data,
+                            struct wl_registry *registry,
+                            uint32_t name,
+                            const char *interface,
+                            uint32_t version)
 {
 	(void) data;
 
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		wayland.compositor = wl_registry_bind(
-			wl_registry, name, &wl_compositor_interface, version);
+			registry, name, &wl_compositor_interface, version);
 	}
 	else if (strcmp(interface, zxdg_shell_v6_interface.name) == 0) {
 		wayland.shell = wl_registry_bind(
-			wl_registry, name, &zxdg_shell_v6_interface, version);
+			registry, name, &zxdg_shell_v6_interface, version);
 	}
 	else if (strcmp(interface, wl_seat_interface.name) == 0) {
 		wayland.seat = wl_registry_bind(
-			wl_registry, name, &wl_seat_interface, version);
+			registry, name, &wl_seat_interface, version);
 	}
 }
 
-static void wl_registry_global_remove(void *data,
-                                      struct wl_registry *wl_registry,
-                                      uint32_t name)
+static void registry_global_remove(void *data,
+                                   struct wl_registry *registry,
+                                   uint32_t name)
 {
 	(void) (data);
-	(void) (wl_registry);
+	(void) (registry);
 	(void) (name);
 }
 
-static struct wl_registry_listener wl_registry_listener = {
-	.global = wl_registry_global,
-	.global_remove = wl_registry_global_remove,
+static struct wl_registry_listener registry_listener = {
+	.global = registry_global,
+	.global_remove = registry_global_remove,
 };
 
-static void xdg_shell_ping(void *data,
-                           struct zxdg_shell_v6 *shell,
-                           uint32_t serial)
+static void shell_ping(void *data,
+                       struct zxdg_shell_v6 *shell,
+                       uint32_t serial)
 {
 	(void) data;
 
@@ -1288,52 +1288,52 @@ static void xdg_shell_ping(void *data,
 }
 
 static struct zxdg_shell_v6_listener shell_listener = {
-	.ping = xdg_shell_ping,
+	.ping = shell_ping,
 };
 
-static void xdg_shell_surface_configure(void *data,
-                                       struct zxdg_surface_v6 *zxdg_surface_v6,
-                                       uint32_t serial)
+static void shell_surface_configure(void *data,
+                                    struct zxdg_surface_v6 *shell_surface,
+                                    uint32_t serial)
 {
 	(void) data;
 
-	zxdg_surface_v6_ack_configure(zxdg_surface_v6, serial);
+	zxdg_surface_v6_ack_configure(shell_surface, serial);
 };
 
-static struct zxdg_surface_v6_listener xdg_shell_surface_listener = {
-	.configure = xdg_shell_surface_configure,
+static struct zxdg_surface_v6_listener shell_surface_listener = {
+	.configure = shell_surface_configure,
 };
 
-static void xdg_toplevel_configure(void *data,
-                                   struct zxdg_toplevel_v6 *zxdg_toplevel_v6,
-                                   int32_t width,
-                                   int32_t height,
-                                   struct wl_array *states)
+static void toplevel_configure(void *data,
+                               struct zxdg_toplevel_v6 *toplevel,
+                               int32_t width,
+                               int32_t height,
+                               struct wl_array *states)
 {
 	(void) data;
-	(void) zxdg_toplevel_v6;
+	(void) toplevel;
 	(void) width;
 	(void) height;
 	(void) states;
 }
 
-static void xdg_toplevel_close(void *data,
-                               struct zxdg_toplevel_v6 *zxdg_toplevel_v6)
+static void toplevel_close(void *data,
+                           struct zxdg_toplevel_v6 *toplevel)
 {
 	(void) data;
-	(void) zxdg_toplevel_v6;
+	(void) toplevel;
 }
 
-static struct zxdg_toplevel_v6_listener xdg_toplevel_listener = {
-	.configure = xdg_toplevel_configure,
-	.close = xdg_toplevel_close,
+static struct zxdg_toplevel_v6_listener toplevel_listener = {
+	.configure = toplevel_configure,
+	.close = toplevel_close,
 };
 
-static void wl_keyboard_keymap(void *data,
-                               struct wl_keyboard *keyboard,
-                               uint32_t format,
-                               int32_t fd,
-                               uint32_t size)
+static void keyboard_keymap(void *data,
+                            struct wl_keyboard *keyboard,
+                            uint32_t format,
+                            int32_t fd,
+                            uint32_t size)
 {
 	(void) (data);
 	(void) (keyboard);
@@ -1342,11 +1342,11 @@ static void wl_keyboard_keymap(void *data,
 	(void) (size);
 }
 
-static void wl_keyboard_enter(void *data,
-                              struct wl_keyboard *keyboard,
-                              uint32_t serial,
-                              struct wl_surface *surface,
-                              struct wl_array *keys)
+static void keyboard_enter(void *data,
+                           struct wl_keyboard *keyboard,
+                           uint32_t serial,
+                           struct wl_surface *surface,
+                           struct wl_array *keys)
 {
 	(void) (data);
 	(void) (keyboard);
@@ -1355,10 +1355,10 @@ static void wl_keyboard_enter(void *data,
 	(void) (keys);
 }
 
-static void wl_keyboard_leave(void *data,
-                              struct wl_keyboard *keyboard,
-                              uint32_t serial,
-                              struct wl_surface *surface)
+static void keyboard_leave(void *data,
+                           struct wl_keyboard *keyboard,
+                           uint32_t serial,
+                           struct wl_surface *surface)
 {
 	(void) (data);
 	(void) (keyboard);
@@ -1366,12 +1366,12 @@ static void wl_keyboard_leave(void *data,
 	(void) (surface);
 }
 
-static void wl_keyboard_key(void *data,
-                            struct wl_keyboard *keyboard,
-                            uint32_t serial,
-                            uint32_t time,
-                            uint32_t key,
-                            uint32_t state)
+static void keyboard_key(void *data,
+                         struct wl_keyboard *keyboard,
+                         uint32_t serial,
+                         uint32_t time,
+                         uint32_t key,
+                         uint32_t state)
 {
 	(void) (data);
 	(void) (keyboard);
@@ -1383,13 +1383,13 @@ static void wl_keyboard_key(void *data,
 	}
 }
 
-static void wl_keyboard_modifiers(void *data,
-                                  struct wl_keyboard *keyboard,
-                                  uint32_t serial,
-                                  uint32_t mods_depressed,
-                                  uint32_t mods_latched,
-                                  uint32_t mods_locked,
-                                  uint32_t group)
+static void keyboard_modifiers(void *data,
+                               struct wl_keyboard *keyboard,
+                               uint32_t serial,
+                               uint32_t mods_depressed,
+                               uint32_t mods_latched,
+                               uint32_t mods_locked,
+                               uint32_t group)
 {
 	(void) (data);
 	(void) (keyboard);
@@ -1400,10 +1400,10 @@ static void wl_keyboard_modifiers(void *data,
 	(void) (group);
 }
 
-static void wl_keyboard_repeat_info(void *data,
-                                    struct wl_keyboard *keyboard,
-                                    int32_t rate,
-                                    int32_t delay)
+static void keyboard_repeat_info(void *data,
+                                 struct wl_keyboard *keyboard,
+                                 int32_t rate,
+                                 int32_t delay)
 {
 	(void) (data);
 	(void) (keyboard);
@@ -1412,12 +1412,12 @@ static void wl_keyboard_repeat_info(void *data,
 }
 
 struct wl_keyboard_listener keyboard_listener = {
-	.keymap = wl_keyboard_keymap,
-	.enter = wl_keyboard_enter,
-	.leave = wl_keyboard_leave,
-	.key = wl_keyboard_key,
-	.modifiers = wl_keyboard_modifiers,
-	.repeat_info = wl_keyboard_repeat_info,
+	.keymap = keyboard_keymap,
+	.enter = keyboard_enter,
+	.leave = keyboard_leave,
+	.key = keyboard_key,
+	.modifiers = keyboard_modifiers,
+	.repeat_info = keyboard_repeat_info,
 };
 
 static int wayland_init()
@@ -1432,7 +1432,7 @@ static int wayland_init()
 		return WAYLAND_ERROR_BIT;
 	}
 
-	wl_registry_add_listener(wayland.registry, &wl_registry_listener, NULL);
+	wl_registry_add_listener(wayland.registry, &registry_listener, NULL);
 	wl_display_roundtrip(wayland.display);
 	if ((wayland.compositor == NULL)
 	    || (wayland.shell == NULL)
@@ -1458,13 +1458,15 @@ static int wayland_init()
 	if (wayland.shell_surface == NULL) {
 		return WAYLAND_ERROR_BIT;
 	}
-	zxdg_surface_v6_add_listener(wayland.shell_surface, &xdg_shell_surface_listener, NULL);
+	zxdg_surface_v6_add_listener(wayland.shell_surface,
+	                             &shell_surface_listener, NULL);
 
 	wayland.toplevel = zxdg_surface_v6_get_toplevel(wayland.shell_surface);
 	if (wayland.toplevel == NULL) {
 		return WAYLAND_ERROR_BIT;
 	}
-	zxdg_toplevel_v6_add_listener(wayland.toplevel, &xdg_toplevel_listener, NULL);
+	zxdg_toplevel_v6_add_listener(wayland.toplevel,
+	                              &toplevel_listener, NULL);
 
 	zxdg_toplevel_v6_set_title(wayland.toplevel, "Hello Vulkan");
 	zxdg_toplevel_v6_set_app_id(wayland.toplevel, "io.eyl.HelloVulkan");
