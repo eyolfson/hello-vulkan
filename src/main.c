@@ -1337,6 +1337,8 @@ static void toplevel_close(void *data,
 {
 	(void) data;
 	(void) toplevel;
+
+	running = false;
 }
 
 static struct zxdg_toplevel_v6_listener toplevel_listener = {
