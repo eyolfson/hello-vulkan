@@ -14,8 +14,8 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HELLO_VULKAN_MMAP
-#define HELLO_VULKAN_MMAP
+#ifndef HELLO_VULKAN_MMAP_H
+#define HELLO_VULKAN_MMAP_H
 
 #include <stddef.h>
 #include <stdint.h>
