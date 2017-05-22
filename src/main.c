@@ -54,6 +54,7 @@ static VkExtent2D swapchain_image_extent = {
 static VkFormat swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
 static VkColorSpaceKHR swapchain_image_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
+static const uint8_t NO_ERRORS = 0;
 static const uint8_t LIBC_ERROR_BIT = 1 << 0;
 static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
 static const uint8_t APP_ERROR_BIT = 1 << 2;
@@ -61,10 +62,12 @@ static const uint8_t WAYLAND_ERROR_BIT = 1 << 3;
 static const uint8_t POSIX_ERROR_BIT = 1 << 4;
 
 struct vulkan {
+	VkInstance instance;
 	VkSurfaceKHR surface_khr;
 };
 
 static struct vulkan vulkan = {
+	.instance = VK_NULL_HANDLE,
 	.surface_khr = VK_NULL_HANDLE,
 };
 
@@ -1236,28 +1239,9 @@ uint8_t use_instance(VkInstance instance)
 		return ret;
 	}
 
-	VkWaylandSurfaceCreateInfoKHR wayland_surface_create_info_khr = {
-		.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
-		.pNext = NULL,
-		.flags = 0,
-		.display = wayland.display,
-		.surface = wayland.surface,
-	};
-	result = vkCreateWaylandSurfaceKHR(instance,
-	                                   &wayland_surface_create_info_khr,
-	                                   NULL,
-	                                   &vulkan.surface_khr);
-	if (result != VK_SUCCESS) {
-		free(physical_devices);
-		int ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-
 	int ret = use_physical_devices(physical_devices,
 	                               physical_device_count);
 
-	vkDestroySurfaceKHR(instance, vulkan.surface_khr, NULL);
 	free(physical_devices);
 	return ret;
 }
@@ -1442,7 +1426,7 @@ struct wl_keyboard_listener keyboard_listener = {
 	.repeat_info = keyboard_repeat_info,
 };
 
-static int wayland_init()
+static uint8_t wayland_init()
 {
 	wayland.display = wl_display_connect(NULL);
 	if (wayland.display == NULL) {
@@ -1499,6 +1483,18 @@ static int wayland_init()
 	return 0;
 }
 
+static void vulkan_fini()
+{
+	if (vulkan.surface_khr != VK_NULL_HANDLE) {
+		vkDestroySurfaceKHR(vulkan.instance, vulkan.surface_khr, NULL);
+		vulkan.surface_khr = VK_NULL_HANDLE;
+	}
+	if (vulkan.instance != VK_NULL_HANDLE) {
+		vkDestroyInstance(vulkan.instance, NULL);
+		vulkan.instance = VK_NULL_HANDLE;
+	}
+}
+
 static void wayland_fini()
 {
 	if (wayland.keyboard != NULL) {
@@ -1539,16 +1535,30 @@ static void wayland_fini()
 	}
 }
 
-int main(int argc, char **argv)
+static uint8_t create_surface_khr()
 {
-	(void) argc;
-	(void) argv;
-
-	int ret = wayland_init();
-	if (ret != 0) {
-		return ret;
+	VkWaylandSurfaceCreateInfoKHR wayland_surface_create_info_khr = {
+		.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+		.pNext = NULL,
+		.flags = 0,
+		.display = wayland.display,
+		.surface = wayland.surface,
+	};
+	VkResult result;
+	result = vkCreateWaylandSurfaceKHR(vulkan.instance,
+	                                   &wayland_surface_create_info_khr,
+	                                   NULL,
+	                                   &vulkan.surface_khr);
+	if (result != VK_SUCCESS) {
+		uint8_t err = VULKAN_ERROR_BIT;
+		err |= print_result(result);
+		return err;
 	}
+	return NO_ERRORS;
+}
 
+static uint8_t create_instance()
+{
 	const char *enabled_layer_names[] = {
 	};
 	const char *enabled_extension_names[] = {
@@ -1565,19 +1575,43 @@ int main(int argc, char **argv)
 		.enabledExtensionCount = ARRAY_SIZE(enabled_extension_names),
 		.ppEnabledExtensionNames = enabled_extension_names,
 	};
-	VkInstance instance;
 	VkResult result;
-	result = vkCreateInstance(&instance_create_info, NULL, &instance);
+	result = vkCreateInstance(&instance_create_info, NULL,
+	                          &vulkan.instance);
 	if (result != VK_SUCCESS) {
-		wayland_fini();
-		ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
+		uint8_t err = VULKAN_ERROR_BIT;
+		err |= print_result(result);
+		return err;
+	}
+	return NO_ERRORS;
+}
+
+int main(int argc, char **argv)
+{
+	(void) argc;
+	(void) argv;
+
+	uint8_t err;
+
+	err = wayland_init();
+	if (err) {
+		goto fini;
 	}
 
-	ret = use_instance(instance);
+	err = create_instance();
+	if (err) {
+		goto fini;
+	}
 
-	vkDestroyInstance(instance, NULL);
+	err = create_surface_khr();
+	if (err) {
+		goto fini;
+	}
+
+	err = use_instance(vulkan.instance);
+
+fini:
+	vulkan_fini();
 	wayland_fini();
-	return ret;
+	return err;
 }
