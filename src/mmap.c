@@ -25,6 +25,9 @@
 
 uint8_t mmap_init(const char *filename, struct mmap_result *result)
 {
+	result->data = NULL;
+	result->data_size = 0;
+
 	int fd = open(filename, O_RDONLY | O_CLOEXEC);
 	if (fd == -1) {
 		return POSIX_ERROR_BIT;
@@ -41,6 +44,8 @@ uint8_t mmap_init(const char *filename, struct mmap_result *result)
 	                    fd, 0);
 
 	if (result->data == MAP_FAILED) {
+		result->data = NULL;
+		result->data_size = 0;
 		close(fd);
 		return POSIX_ERROR_BIT;
 	}

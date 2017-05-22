@@ -731,14 +731,8 @@ uint8_t use_image_views(VkDevice device,
                         VkImageView *image_views,
                         uint32_t image_view_count)
 {
-	struct mmap_result frag = {
-		.data = NULL,
-		.data_size = 0,
-	};
-	struct mmap_result vert = {
-		.data = NULL,
-		.data_size = 0,
-	};
+	struct mmap_result frag;
+	struct mmap_result vert;
 
 	uint8_t ret = mmap_init("frag.spv", &frag);
 	if (ret != 0) {
