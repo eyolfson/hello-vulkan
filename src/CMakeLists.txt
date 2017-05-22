@@ -61,6 +61,7 @@ include_directories(
 
 add_executable(hello-vulkan
 	main.c
+	mmap.c
 	${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.h
 	${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.c
 	${CMAKE_BINARY_DIR}/frag.spv

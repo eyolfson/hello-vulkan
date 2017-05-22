@@ -14,6 +14,9 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "error.h"
+#include "mmap.h"
+
 #define VK_USE_PLATFORM_WAYLAND_KHR
 #include <vulkan/vulkan.h>
 
@@ -28,11 +31,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -53,13 +51,6 @@ static VkExtent2D swapchain_image_extent = {
 };
 static VkFormat swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
 static VkColorSpaceKHR swapchain_image_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
-static const uint8_t NO_ERRORS = 0;
-static const uint8_t LIBC_ERROR_BIT = 1 << 0;
-static const uint8_t VULKAN_ERROR_BIT = 1 << 1;
-static const uint8_t APP_ERROR_BIT = 1 << 2;
-static const uint8_t WAYLAND_ERROR_BIT = 1 << 3;
-static const uint8_t POSIX_ERROR_BIT = 1 << 4;
 
 struct vulkan {
 	VkInstance instance;
@@ -94,31 +85,6 @@ static struct wayland wayland = {
 	.seat = NULL,
 	.keyboard = NULL,
 };
-
-static uint8_t mmap_file(const char *filename, const uint32_t **code, size_t *code_size)
-{
-	int fd = open(filename, O_RDONLY | O_CLOEXEC);
-	if (fd == -1) {
-		return POSIX_ERROR_BIT;
-	}
-
-	struct stat stat;
-	if (fstat(fd, &stat) == -1) {
-		close(fd);
-		return POSIX_ERROR_BIT;
-	}
-
-	*code_size = stat.st_size;
-	*code = mmap(NULL, *code_size, PROT_READ, MAP_PRIVATE, fd, 0);
-
-	if (*code == MAP_FAILED) {
-		close(fd);
-		return POSIX_ERROR_BIT;
-	}
-
-	close(fd);
-	return 0;
-}
 
 int print_result(VkResult result)
 {
@@ -765,19 +731,23 @@ uint8_t use_image_views(VkDevice device,
                         VkImageView *image_views,
                         uint32_t image_view_count)
 {
-	const uint32_t *frag_code;
-	size_t frag_code_size;
+	struct mmap_result frag = {
+		.data = NULL,
+		.data_size = 0,
+	};
+	struct mmap_result vert = {
+		.data = NULL,
+		.data_size = 0,
+	};
 
-	uint8_t ret = mmap_file("frag.spv", &frag_code, &frag_code_size);
+	uint8_t ret = mmap_init("frag.spv", &frag);
 	if (ret != 0) {
 		return ret;
 	}
 
-	const uint32_t *vert_code;
-	size_t vert_code_size;
-	ret = mmap_file("vert.spv", &vert_code, &vert_code_size);
+	ret = mmap_init("vert.spv", &vert);
 	if (ret != 0) {
-		munmap((void *) frag_code, frag_code_size);
+		mmap_fini(&frag);
 		return ret;
 	}
 
@@ -785,31 +755,31 @@ uint8_t use_image_views(VkDevice device,
 		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.codeSize = frag_code_size,
-		.pCode = frag_code,
+		.codeSize = frag.data_size,
+		.pCode = frag.data,
 	};
 	VkResult result;
 	VkShaderModule frag_shader_module;
 	result = vkCreateShaderModule(device, &shader_module_create_info, NULL,
 	                              &frag_shader_module);
 	if (result != VK_SUCCESS) {
-		munmap((void *) vert_code, vert_code_size);
-		munmap((void *) frag_code, frag_code_size);
+		mmap_fini(&vert);
+		mmap_fini(&frag);
 		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
 	}
 
-	shader_module_create_info.codeSize = vert_code_size;
-	shader_module_create_info.pCode = vert_code;
+	shader_module_create_info.codeSize = vert.data_size;
+	shader_module_create_info.pCode = vert.data;
 
 	VkShaderModule vert_shader_module;
 	result = vkCreateShaderModule(device, &shader_module_create_info, NULL,
 	                              &vert_shader_module);
 	if (result != VK_SUCCESS) {
 		vkDestroyShaderModule(device, frag_shader_module, NULL);
-		munmap((void *) vert_code, vert_code_size);
-		munmap((void *) frag_code, frag_code_size);
+		mmap_fini(&vert);
+		mmap_fini(&frag);
 		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
 		return ret;
@@ -820,8 +790,8 @@ uint8_t use_image_views(VkDevice device,
 
 	vkDestroyShaderModule(device, vert_shader_module, NULL);
 	vkDestroyShaderModule(device, frag_shader_module, NULL);
-	munmap((void *) vert_code, vert_code_size);
-	munmap((void *) frag_code, frag_code_size);
+	mmap_fini(&vert);
+	mmap_fini(&frag);
 	return 0;
 }
 
