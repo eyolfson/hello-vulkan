@@ -60,32 +60,13 @@ static const uint8_t APP_ERROR_BIT = 1 << 2;
 static const uint8_t WAYLAND_ERROR_BIT = 1 << 3;
 static const uint8_t POSIX_ERROR_BIT = 1 << 4;
 
-static uint8_t mmap_file(const char *filename, const uint32_t **code, size_t *code_size)
-{
-	int fd = open(filename, O_RDONLY | O_CLOEXEC);
-	if (fd == -1) {
-		return POSIX_ERROR_BIT;
-	}
+struct vulkan {
+	VkSurfaceKHR surface_khr;
+};
 
-	struct stat stat;
-	if (fstat(fd, &stat) == -1) {
-		close(fd);
-		return POSIX_ERROR_BIT;
-	}
-
-	*code_size = stat.st_size;
-	*code = mmap(NULL, *code_size, PROT_READ, MAP_PRIVATE, fd, 0);
-
-	if (*code == MAP_FAILED) {
-		close(fd);
-		return POSIX_ERROR_BIT;
-	}
-
-	close(fd);
-	return 0;
-}
-
-static VkSurfaceKHR surface_khr;
+static struct vulkan vulkan = {
+	.surface_khr = VK_NULL_HANDLE,
+};
 
 struct wayland {
 	struct wl_display *display;
@@ -111,7 +92,30 @@ static struct wayland wayland = {
 	.keyboard = NULL,
 };
 
-static VkSurfaceKHR surface_khr;
+static uint8_t mmap_file(const char *filename, const uint32_t **code, size_t *code_size)
+{
+	int fd = open(filename, O_RDONLY | O_CLOEXEC);
+	if (fd == -1) {
+		return POSIX_ERROR_BIT;
+	}
+
+	struct stat stat;
+	if (fstat(fd, &stat) == -1) {
+		close(fd);
+		return POSIX_ERROR_BIT;
+	}
+
+	*code_size = stat.st_size;
+	*code = mmap(NULL, *code_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+	if (*code == MAP_FAILED) {
+		close(fd);
+		return POSIX_ERROR_BIT;
+	}
+
+	close(fd);
+	return 0;
+}
 
 int print_result(VkResult result)
 {
@@ -913,7 +917,7 @@ uint8_t use_device(VkDevice device)
 		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 		.pNext = NULL,
 		.flags = 0,
-		.surface = surface_khr,
+		.surface = vulkan.surface_khr,
 		.minImageCount = min_image_count,
 		.imageFormat = swapchain_image_format,
 		.imageColorSpace = swapchain_image_color_space,
@@ -954,7 +958,7 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 	VkResult result;
 	result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
 		physical_device,
-		surface_khr,
+		vulkan.surface_khr,
 		&surface_capabilities_khr
 	);
 	if (result != VK_SUCCESS) {
@@ -978,7 +982,8 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 
 	VkBool32 supported;
 	result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, 0,
-	                                              surface_khr, &supported);
+	                                              vulkan.surface_khr,
+	                                              &supported);
 	if (result != VK_SUCCESS) {
 		int ret = VULKAN_ERROR_BIT;
 		ret |= print_result(result);
@@ -990,7 +995,7 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 
 	uint32_t surface_format_count;
 	result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
-	                                              surface_khr,
+	                                              vulkan.surface_khr,
 	                                              &surface_format_count,
 	                                              NULL);
 	if (result != VK_SUCCESS) {
@@ -1005,7 +1010,7 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 		return LIBC_ERROR_BIT;
 	}
 	result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
-	                                              surface_khr,
+	                                              vulkan.surface_khr,
 	                                              &surface_format_count,
 	                                              surface_formats);
 	if (result != VK_SUCCESS) {
@@ -1241,7 +1246,7 @@ uint8_t use_instance(VkInstance instance)
 	result = vkCreateWaylandSurfaceKHR(instance,
 	                                   &wayland_surface_create_info_khr,
 	                                   NULL,
-	                                   &surface_khr);
+	                                   &vulkan.surface_khr);
 	if (result != VK_SUCCESS) {
 		free(physical_devices);
 		int ret = VULKAN_ERROR_BIT;
@@ -1252,7 +1257,7 @@ uint8_t use_instance(VkInstance instance)
 	int ret = use_physical_devices(physical_devices,
 	                               physical_device_count);
 
-	vkDestroySurfaceKHR(instance, surface_khr, NULL);
+	vkDestroySurfaceKHR(instance, vulkan.surface_khr, NULL);
 	free(physical_devices);
 	return ret;
 }
