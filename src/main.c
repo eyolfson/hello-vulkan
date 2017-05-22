@@ -55,11 +55,15 @@ static VkColorSpaceKHR swapchain_image_color_space = VK_COLOR_SPACE_SRGB_NONLINE
 struct vulkan {
 	VkInstance instance;
 	VkSurfaceKHR surface_khr;
+	VkPhysicalDevice *physical_devices;
+	uint32_t physical_device_count;
 };
 
 static struct vulkan vulkan = {
 	.instance = VK_NULL_HANDLE,
 	.surface_khr = VK_NULL_HANDLE,
+	.physical_devices = NULL,
+	.physical_device_count = 0,
 };
 
 struct wayland {
@@ -1141,75 +1145,6 @@ uint8_t use_physical_device(VkPhysicalDevice physical_device)
 	return ret;
 }
 
-uint8_t use_physical_devices(VkPhysicalDevice *physical_devices,
-                             uint32_t physical_device_count)
-{
-	printf("Found %u Physical Device", physical_device_count);
-	if (physical_device_count > 1) {
-		printf("s");
-	}
-	printf("\n");
-
-	VkPhysicalDeviceProperties properties;
-	for (uint32_t i = 0; i != physical_device_count; ++i) {
-		vkGetPhysicalDeviceProperties(physical_devices[i], &properties);
-		printf("  %u: %s\n", i, properties.deviceName);
-	}
-
-	if (physical_device_count == 0) {
-		return APP_ERROR_BIT;
-	}
-
-	{
-		VkPhysicalDeviceProperties properties;
-		vkGetPhysicalDeviceProperties(physical_devices[0], &properties);
-		printf("Using 0: %s\n", properties.deviceName);
-	}
-
-	uint8_t ret = use_physical_device(physical_devices[0]);
-
-	return ret;
-}
-
-uint8_t use_instance(VkInstance instance)
-{
-	uint32_t physical_device_count;
-	VkResult result;
-	result = vkEnumeratePhysicalDevices(
-		instance,
-		&physical_device_count,
-		NULL
-	);
-	if (result != VK_SUCCESS) {
-		int ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-	VkPhysicalDevice *physical_devices = malloc(
-		physical_device_count * sizeof(VkPhysicalDevice)
-	);
-	if (physical_devices == NULL) {
-		return LIBC_ERROR_BIT;
-	}
-	result = vkEnumeratePhysicalDevices(
-		instance,
-		&physical_device_count,
-		physical_devices
-	);
-	if (result != VK_SUCCESS) {
-		free(physical_devices);
-		int ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-
-	int ret = use_physical_devices(physical_devices,
-	                               physical_device_count);
-
-	free(physical_devices);
-	return ret;
-}
-
 static void registry_global(void *data,
                             struct wl_registry *registry,
                             uint32_t name,
@@ -1449,6 +1384,10 @@ static uint8_t wayland_init()
 
 static void vulkan_fini()
 {
+	if (vulkan.physical_devices != NULL) {
+		free(vulkan.physical_devices);
+		vulkan.physical_devices = NULL;
+	}
 	if (vulkan.surface_khr != VK_NULL_HANDLE) {
 		vkDestroySurfaceKHR(vulkan.instance, vulkan.surface_khr, NULL);
 		vulkan.surface_khr = VK_NULL_HANDLE;
@@ -1499,6 +1438,46 @@ static void wayland_fini()
 	}
 }
 
+static uint8_t create_physical_devices()
+{
+	VkResult result;
+	result = vkEnumeratePhysicalDevices(vulkan.instance,
+	                                    &vulkan.physical_device_count,
+	                                    NULL);
+	if (result != VK_SUCCESS) {
+		return VULKAN_ERROR_BIT | print_result(result);
+	}
+
+	if (vulkan.physical_device_count == 0) {
+		return APP_ERROR_BIT;
+	}
+
+	vulkan.physical_devices = malloc(
+		vulkan.physical_device_count * sizeof(VkPhysicalDevice)
+	);
+	if (vulkan.physical_devices == NULL) {
+		return LIBC_ERROR_BIT;
+	}
+
+	result = vkEnumeratePhysicalDevices(vulkan.instance,
+	                                    &vulkan.physical_device_count,
+	                                    vulkan.physical_devices);
+	if (result != VK_SUCCESS) {
+		return VULKAN_ERROR_BIT | print_result(result);
+	}
+
+	printf("Physical Devices\n");
+	VkPhysicalDeviceProperties properties;
+	for (uint32_t i = 0; i != vulkan.physical_device_count; ++i) {
+		vkGetPhysicalDeviceProperties(vulkan.physical_devices[i], &properties);
+		if (i == 0) { printf("  * "); }
+		else        { printf("    "); }
+		printf("%u: %s\n", i, properties.deviceName);
+	}
+
+	return NO_ERRORS;
+}
+
 static uint8_t create_surface_khr()
 {
 	VkWaylandSurfaceCreateInfoKHR wayland_surface_create_info_khr = {
@@ -1514,9 +1493,7 @@ static uint8_t create_surface_khr()
 	                                   NULL,
 	                                   &vulkan.surface_khr);
 	if (result != VK_SUCCESS) {
-		uint8_t err = VULKAN_ERROR_BIT;
-		err |= print_result(result);
-		return err;
+		return VULKAN_ERROR_BIT | print_result(result);
 	}
 	return NO_ERRORS;
 }
@@ -1543,9 +1520,7 @@ static uint8_t create_instance()
 	result = vkCreateInstance(&instance_create_info, NULL,
 	                          &vulkan.instance);
 	if (result != VK_SUCCESS) {
-		uint8_t err = VULKAN_ERROR_BIT;
-		err |= print_result(result);
-		return err;
+		return VULKAN_ERROR_BIT | print_result(result);
 	}
 	return NO_ERRORS;
 }
@@ -1572,7 +1547,12 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = use_instance(vulkan.instance);
+	err = create_physical_devices();
+	if (err) {
+		goto fini;
+	}
+
+	err = use_physical_device(vulkan.physical_devices[0]);
 
 fini:
 	vulkan_fini();
