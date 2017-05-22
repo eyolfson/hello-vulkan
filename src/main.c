@@ -1387,6 +1387,7 @@ static void vulkan_fini()
 	if (vulkan.physical_devices != NULL) {
 		free(vulkan.physical_devices);
 		vulkan.physical_devices = NULL;
+		vulkan.physical_device_count = 0;
 	}
 	if (vulkan.surface_khr != VK_NULL_HANDLE) {
 		vkDestroySurfaceKHR(vulkan.instance, vulkan.surface_khr, NULL);
