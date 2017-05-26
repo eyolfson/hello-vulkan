@@ -37,8 +37,6 @@
 
 static bool running = true;
 
-static uint32_t graphics_queue_family_index;
-
 static VkQueue queue;
 static VkSwapchainKHR swapchain;
 
@@ -57,6 +55,8 @@ struct vulkan {
 	VkSurfaceKHR surface_khr;
 	VkPhysicalDevice *physical_devices;
 	uint32_t physical_device_count;
+	VkDevice device;
+	uint32_t graphics_queue_family_index;
 };
 
 static struct vulkan vulkan = {
@@ -64,6 +64,7 @@ static struct vulkan vulkan = {
 	.surface_khr = VK_NULL_HANDLE,
 	.physical_devices = NULL,
 	.physical_device_count = 0,
+	.device = VK_NULL_HANDLE,
 };
 
 struct wayland {
@@ -261,7 +262,7 @@ static uint8_t use_framebuffers(
 		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 		.pNext = NULL,
 		.flags = 0,
-		.queueFamilyIndex = graphics_queue_family_index,
+		.queueFamilyIndex = vulkan.graphics_queue_family_index,
 	};
 
 	VkResult result;
@@ -880,7 +881,7 @@ uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 
 uint8_t use_device(VkDevice device)
 {
-	uint32_t queue_family_index = graphics_queue_family_index;
+	uint32_t queue_family_index = vulkan.graphics_queue_family_index;
 	uint32_t queue_index = 0;
 	vkGetDeviceQueue(device, queue_family_index, queue_index, &queue);
 
@@ -1049,100 +1050,6 @@ uint8_t physical_device_has_swapchain_extension(
 	free(extension_properties);
 
 	return 0;
-}
-
-uint8_t use_physical_device(VkPhysicalDevice physical_device)
-{
-	/* Physical Device Queue Family Properties */
-	uint32_t queue_family_property_count;
-	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
-	                                         &queue_family_property_count,
-	                                         NULL);
-	VkQueueFamilyProperties *queue_family_properties = malloc(
-		queue_family_property_count * sizeof(VkQueueFamilyProperties)
-	);
-	if (queue_family_properties == NULL) {
-		return LIBC_ERROR_BIT;
-	}
-	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
-	                                         &queue_family_property_count,
-	                                         queue_family_properties);
-	bool graphics_found = false;
-	for (uint32_t i = 0; i < queue_family_property_count; ++i) {
-		if (queue_family_properties[i].queueFlags
-		    & VK_QUEUE_GRAPHICS_BIT) {
-			graphics_queue_family_index = i;
-			graphics_found = true;
-			break;
-		}
-	}
-	if (!graphics_found) {
-		printf("Cannot find graphics queue family index\n");
-		return APP_ERROR_BIT;
-	}
-	free(queue_family_properties);
-
-	const float queue_priorities[1] = {1.0f};
-	VkDeviceQueueCreateInfo device_queue_create_infos[1] = {
-		{
-			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = 0,
-			.queueFamilyIndex = graphics_queue_family_index,
-			.queueCount = ARRAY_SIZE(queue_priorities),
-			.pQueuePriorities = queue_priorities,
-		},
-	};
-
-	bool has_swapchain_extension;
-	int ret = physical_device_has_swapchain_extension(
-		physical_device,
-		&has_swapchain_extension
-	);
-	if (ret != 0) {
-		return ret;
-	}
-	if (!has_swapchain_extension) {
-		/* Graphics card can't present image directly to screen */
-		return APP_ERROR_BIT;
-	}
-
-	ret = physical_device_capabilities(physical_device);
-	if (ret != 0) {
-		return ret;
-	}
-
-	const char *const enabled_extension_names[1] = {
-		"VK_KHR_swapchain",
-	};
-	VkDeviceCreateInfo device_create_info = {
-		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-		.pNext = NULL,
-		.flags = 0,
-		.queueCreateInfoCount = ARRAY_SIZE(device_queue_create_infos),
-		.pQueueCreateInfos = device_queue_create_infos,
-		.enabledLayerCount = 0,
-		.ppEnabledLayerNames = NULL,
-		.enabledExtensionCount = ARRAY_SIZE(enabled_extension_names),
-		.ppEnabledExtensionNames = enabled_extension_names,
-		.pEnabledFeatures = NULL,
-	};
-	VkDevice device;
-	VkResult result;
-	result = vkCreateDevice(physical_device,
-	                        &device_create_info,
-	                        NULL,
-	                        &device);
-	if (result != VK_SUCCESS) {
-		ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-
-	ret = use_device(device);
-
-	vkDestroyDevice(device, NULL);
-	return ret;
 }
 
 static void registry_global(void *data,
@@ -1384,6 +1291,10 @@ static uint8_t wayland_init()
 
 static void vulkan_fini()
 {
+	if (vulkan.device != VK_NULL_HANDLE) {
+		vkDestroyDevice(vulkan.device, NULL);
+		vulkan.device = VK_NULL_HANDLE;
+	}
 	if (vulkan.physical_devices != NULL) {
 		free(vulkan.physical_devices);
 		vulkan.physical_devices = NULL;
@@ -1437,6 +1348,111 @@ static void wayland_fini()
 		wl_display_disconnect(wayland.display);
 		wayland.display = NULL;
 	}
+}
+
+static uint32_t find_graphics_queue_family_index(
+	VkPhysicalDevice physical_device)
+{
+	/* Physical Device Queue Family Properties */
+	uint32_t queue_family_property_count;
+	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
+	                                         &queue_family_property_count,
+	                                         NULL);
+	VkQueueFamilyProperties *queue_family_properties = malloc(
+		queue_family_property_count * sizeof(VkQueueFamilyProperties)
+	);
+	if (queue_family_properties == NULL) {
+		return LIBC_ERROR_BIT;
+	}
+	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
+	                                         &queue_family_property_count,
+	                                         queue_family_properties);
+	bool graphics_found = false;
+	for (uint32_t i = 0; i < queue_family_property_count; ++i) {
+		if (queue_family_properties[i].queueFlags
+		    & VK_QUEUE_GRAPHICS_BIT) {
+			vulkan.graphics_queue_family_index = i;
+			graphics_found = true;
+			break;
+		}
+	}
+
+	uint8_t err = NO_ERRORS;
+	if (!graphics_found) {
+		printf("Cannot find graphics queue family index\n");
+		err = APP_ERROR_BIT;
+	}
+
+	free(queue_family_properties);
+
+	return err;
+}
+
+static uint8_t create_device(size_t index)
+{
+	VkPhysicalDevice physical_device = vulkan.physical_devices[index];
+
+	uint8_t err;
+
+	err = find_graphics_queue_family_index(physical_device);
+	if (err) {
+		return err;
+	}
+
+	bool has_swapchain_extension;
+	int ret = physical_device_has_swapchain_extension(
+		physical_device,
+		&has_swapchain_extension
+	);
+	if (ret != 0) {
+		return ret;
+	}
+	if (!has_swapchain_extension) {
+		/* Graphics card can't present image directly to screen */
+		return APP_ERROR_BIT;
+	}
+
+	ret = physical_device_capabilities(physical_device);
+	if (ret != 0) {
+		return ret;
+	}
+
+	const float queue_priorities[1] = {1.0f};
+	VkDeviceQueueCreateInfo device_queue_create_infos[1] = {
+		{
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = 0,
+			.queueFamilyIndex = vulkan.graphics_queue_family_index,
+			.queueCount = ARRAY_SIZE(queue_priorities),
+			.pQueuePriorities = queue_priorities,
+		},
+	};
+	const char *const enabled_extension_names[1] = {
+		"VK_KHR_swapchain",
+	};
+	VkDeviceCreateInfo device_create_info = {
+		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+		.pNext = NULL,
+		.flags = 0,
+		.queueCreateInfoCount = ARRAY_SIZE(device_queue_create_infos),
+		.pQueueCreateInfos = device_queue_create_infos,
+		.enabledLayerCount = 0,
+		.ppEnabledLayerNames = NULL,
+		.enabledExtensionCount = ARRAY_SIZE(enabled_extension_names),
+		.ppEnabledExtensionNames = enabled_extension_names,
+		.pEnabledFeatures = NULL,
+	};
+	VkResult result;
+	result = vkCreateDevice(physical_device,
+	                        &device_create_info,
+	                        NULL,
+	                        &vulkan.device);
+	if (result != VK_SUCCESS) {
+		return VULKAN_ERROR_BIT | print_result(result);
+	}
+
+	return NO_ERRORS;
 }
 
 static uint8_t create_physical_devices()
@@ -1553,7 +1569,12 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = use_physical_device(vulkan.physical_devices[0]);
+	err = create_device(0);
+	if (err) {
+		goto fini;
+	}
+
+	err = use_device(vulkan.device);
 
 fini:
 	vulkan_fini();
