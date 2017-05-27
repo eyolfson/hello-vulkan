@@ -1,6 +1,6 @@
 # Hello Vulkan
 
-A quick demo of the Vulkan API, using Wayland.
+A quick demo of the Vulkan API, using Wayland on Linux.
 
 ## Graphics
 
