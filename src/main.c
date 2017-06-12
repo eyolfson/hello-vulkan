@@ -1388,9 +1388,9 @@ static uint32_t find_graphics_queue_family_index(
 	return err;
 }
 
-static uint8_t create_device(size_t index)
+static uint8_t create_device(VkPhysicalDevice *physical_devices, size_t index)
 {
-	VkPhysicalDevice physical_device = vulkan.physical_devices[index];
+	VkPhysicalDevice physical_device = physical_devices[index];
 
 	uint8_t err;
 
@@ -1455,10 +1455,10 @@ static uint8_t create_device(size_t index)
 	return NO_ERRORS;
 }
 
-static uint8_t create_physical_devices()
+static uint8_t create_physical_devices(VkInstance instance)
 {
 	VkResult result;
-	result = vkEnumeratePhysicalDevices(vulkan.instance,
+	result = vkEnumeratePhysicalDevices(instance,
 	                                    &vulkan.physical_device_count,
 	                                    NULL);
 	if (result != VK_SUCCESS) {
@@ -1476,7 +1476,7 @@ static uint8_t create_physical_devices()
 		return LIBC_ERROR_BIT;
 	}
 
-	result = vkEnumeratePhysicalDevices(vulkan.instance,
+	result = vkEnumeratePhysicalDevices(instance,
 	                                    &vulkan.physical_device_count,
 	                                    vulkan.physical_devices);
 	if (result != VK_SUCCESS) {
@@ -1564,12 +1564,12 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = create_physical_devices();
+	err = create_physical_devices(vulkan.instance);
 	if (err) {
 		goto fini;
 	}
 
-	err = create_device(0);
+	err = create_device(vulkan.physical_devices, 0);
 	if (err) {
 		goto fini;
 	}
