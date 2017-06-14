@@ -40,23 +40,20 @@ static bool running = true;
 static VkQueue queue;
 static VkSwapchainKHR swapchain;
 
-static uint32_t min_image_count;
-static VkSurfaceTransformFlagBitsKHR current_transform;
-
-static VkExtent2D swapchain_image_extent = {
-	.width = WIDTH,
-	.height = HEIGHT
-};
-static VkFormat swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
-static VkColorSpaceKHR swapchain_image_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
 struct vulkan {
 	VkInstance instance;
 	VkSurfaceKHR surface_khr;
 	VkPhysicalDevice *physical_devices;
 	uint32_t physical_device_count;
 	VkDevice device;
+
 	uint32_t graphics_queue_family_index;
+	uint32_t min_image_count;
+	VkSurfaceTransformFlagBitsKHR current_transform;
+
+	VkExtent2D swapchain_image_extent;
+	VkFormat swapchain_image_format;
+	VkColorSpaceKHR swapchain_image_color_space;
 };
 
 static struct vulkan vulkan = {
@@ -65,6 +62,15 @@ static struct vulkan vulkan = {
 	.physical_devices = NULL,
 	.physical_device_count = 0,
 	.device = VK_NULL_HANDLE,
+
+	.graphics_queue_family_index = 0,
+
+	.swapchain_image_extent = {
+		.width = WIDTH,
+		.height = HEIGHT
+	},
+	.swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM,
+	.swapchain_image_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
 };
 
 struct wayland {
@@ -335,7 +341,7 @@ static uint8_t use_framebuffers(
 					.x = 0,
 					.y = 0,
 				},
-				.extent = swapchain_image_extent,
+				.extent = vulkan.swapchain_image_extent,
 			},
 			.clearValueCount = ARRAY_SIZE(clear_values),
 			.pClearValues = clear_values,
@@ -441,7 +447,7 @@ static uint8_t use_shader_modules(
 			.x = 0,
 			.y = 0,
 		},
-		.extent = swapchain_image_extent,
+		.extent = vulkan.swapchain_image_extent,
 	};
 	VkRect2D scissors[] = { scissor };
 
@@ -556,7 +562,7 @@ static uint8_t use_shader_modules(
 
 	VkAttachmentDescription color_attachment_description = {
 		.flags = 0,
-		.format = swapchain_image_format,
+		.format = vulkan.swapchain_image_format,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -692,8 +698,8 @@ static uint8_t use_shader_modules(
 			.renderPass = render_pass,
 			.attachmentCount = ARRAY_SIZE(attachments),
 			.pAttachments = attachments,
-			.width = swapchain_image_extent.width,
-			.height = swapchain_image_extent.height,
+			.width = vulkan.swapchain_image_extent.width,
+			.height = vulkan.swapchain_image_extent.height,
 			.layers = 1,
 		};
 		result = vkCreateFramebuffer(device,
@@ -839,7 +845,7 @@ uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 			.flags = 0,
 			.image = swapchain_images[i],
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = swapchain_image_format,
+			.format = vulkan.swapchain_image_format,
 			.components = {
 				.r = VK_COMPONENT_SWIZZLE_IDENTITY,
 				.g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -890,16 +896,16 @@ uint8_t use_device(VkDevice device)
 		.pNext = NULL,
 		.flags = 0,
 		.surface = vulkan.surface_khr,
-		.minImageCount = min_image_count,
-		.imageFormat = swapchain_image_format,
-		.imageColorSpace = swapchain_image_color_space,
-		.imageExtent = swapchain_image_extent,
+		.minImageCount = vulkan.min_image_count,
+		.imageFormat = vulkan.swapchain_image_format,
+		.imageColorSpace = vulkan.swapchain_image_color_space,
+		.imageExtent = vulkan.swapchain_image_extent,
 		.imageArrayLayers = 1,
 		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.queueFamilyIndexCount = 0,
 		.pQueueFamilyIndices = NULL,
-		.preTransform = current_transform,
+		.preTransform = vulkan.current_transform,
 		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 		.presentMode = VK_PRESENT_MODE_FIFO_KHR,
 		.clipped = VK_TRUE,
@@ -949,8 +955,8 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 		return APP_ERROR_BIT;
 	}
 
-	min_image_count = surface_capabilities_khr.minImageCount;
-	current_transform = surface_capabilities_khr.currentTransform;
+	vulkan.min_image_count = surface_capabilities_khr.minImageCount;
+	vulkan.current_transform = surface_capabilities_khr.currentTransform;
 
 	VkBool32 supported;
 	result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, 0,
@@ -993,9 +999,9 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 	}
 	bool found = false;
 	for (uint32_t i = 0; i < surface_format_count; ++i) {
-		if ((surface_formats[i].format == swapchain_image_format)
+		if ((surface_formats[i].format == vulkan.swapchain_image_format)
 		    && (surface_formats[i].colorSpace
-		        == swapchain_image_color_space)) {
+		        == vulkan.swapchain_image_color_space)) {
 			found = true;
 		}
 	}
