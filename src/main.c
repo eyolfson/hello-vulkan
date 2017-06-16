@@ -1521,7 +1521,7 @@ static uint8_t create_surface_khr(VkInstance instance)
 	return NO_ERRORS;
 }
 
-static uint8_t create_instance()
+static uint8_t create_instance(VkInstance *pinstance)
 {
 	const char *enabled_layer_names[] = {
 	};
@@ -1541,7 +1541,7 @@ static uint8_t create_instance()
 	};
 	VkResult result;
 	result = vkCreateInstance(&instance_create_info, NULL,
-	                          &vulkan.instance);
+	                          pinstance);
 	if (result != VK_SUCCESS) {
 		return VULKAN_ERROR_BIT | print_result(result);
 	}
@@ -1560,7 +1560,7 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = create_instance();
+	err = create_instance(&vulkan.instance);
 	if (err) {
 		goto fini;
 	}
