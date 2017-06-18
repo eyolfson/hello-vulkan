@@ -1501,7 +1501,8 @@ static uint8_t create_physical_devices(VkInstance instance)
 	return NO_ERRORS;
 }
 
-static uint8_t create_surface_khr(VkInstance instance)
+static uint8_t create_surface_khr(VkSurfaceKHR *ptr_surface_khr,
+                                  VkInstance instance)
 {
 	VkWaylandSurfaceCreateInfoKHR wayland_surface_create_info_khr = {
 		.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
@@ -1514,14 +1515,14 @@ static uint8_t create_surface_khr(VkInstance instance)
 	result = vkCreateWaylandSurfaceKHR(instance,
 	                                   &wayland_surface_create_info_khr,
 	                                   NULL,
-	                                   &vulkan.surface_khr);
+	                                   ptr_surface_khr);
 	if (result != VK_SUCCESS) {
 		return VULKAN_ERROR_BIT | print_result(result);
 	}
 	return NO_ERRORS;
 }
 
-static uint8_t create_instance(VkInstance *pinstance)
+static uint8_t create_instance(VkInstance *ptr_instance)
 {
 	const char *enabled_layer_names[] = {
 	};
@@ -1541,7 +1542,7 @@ static uint8_t create_instance(VkInstance *pinstance)
 	};
 	VkResult result;
 	result = vkCreateInstance(&instance_create_info, NULL,
-	                          pinstance);
+	                          ptr_instance);
 	if (result != VK_SUCCESS) {
 		return VULKAN_ERROR_BIT | print_result(result);
 	}
@@ -1565,7 +1566,7 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = create_surface_khr(vulkan.instance);
+	err = create_surface_khr(&vulkan.surface_khr, vulkan.instance);
 	if (err) {
 		goto fini;
 	}
