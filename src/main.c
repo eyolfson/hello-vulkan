@@ -1501,7 +1501,7 @@ static uint8_t create_physical_devices(VkInstance instance)
 	return NO_ERRORS;
 }
 
-static uint8_t create_surface_khr(VkSurfaceKHR *ptr_surface_khr,
+static uint8_t create_surface_khr(VkSurfaceKHR *surface_khr_ptr,
                                   VkInstance instance)
 {
 	VkWaylandSurfaceCreateInfoKHR wayland_surface_create_info_khr = {
@@ -1515,14 +1515,14 @@ static uint8_t create_surface_khr(VkSurfaceKHR *ptr_surface_khr,
 	result = vkCreateWaylandSurfaceKHR(instance,
 	                                   &wayland_surface_create_info_khr,
 	                                   NULL,
-	                                   ptr_surface_khr);
+	                                   surface_khr_ptr);
 	if (result != VK_SUCCESS) {
 		return VULKAN_ERROR_BIT | print_result(result);
 	}
 	return NO_ERRORS;
 }
 
-static uint8_t create_instance(VkInstance *ptr_instance)
+static uint8_t create_instance(VkInstance *instance_ptr)
 {
 	const char *enabled_layer_names[] = {
 	};
@@ -1542,7 +1542,7 @@ static uint8_t create_instance(VkInstance *ptr_instance)
 	};
 	VkResult result;
 	result = vkCreateInstance(&instance_create_info, NULL,
-	                          ptr_instance);
+	                          instance_ptr);
 	if (result != VK_SUCCESS) {
 		return VULKAN_ERROR_BIT | print_result(result);
 	}
