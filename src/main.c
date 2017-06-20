@@ -1461,38 +1461,40 @@ static uint8_t create_device(VkPhysicalDevice *physical_devices, size_t index)
 	return NO_ERRORS;
 }
 
-static uint8_t create_physical_devices(VkInstance instance)
+static uint8_t create_physical_devices(VkPhysicalDevice **physical_devices_ptr,
+                                       uint32_t *physical_device_count_ptr,
+                                       VkInstance instance)
 {
 	VkResult result;
 	result = vkEnumeratePhysicalDevices(instance,
-	                                    &vulkan.physical_device_count,
+	                                    physical_device_count_ptr,
 	                                    NULL);
 	if (result != VK_SUCCESS) {
 		return VULKAN_ERROR_BIT | print_result(result);
 	}
 
-	if (vulkan.physical_device_count == 0) {
+	if (*physical_device_count_ptr == 0) {
 		return APP_ERROR_BIT;
 	}
 
-	vulkan.physical_devices = malloc(
-		vulkan.physical_device_count * sizeof(VkPhysicalDevice)
+	*physical_devices_ptr = malloc(
+		*physical_device_count_ptr * sizeof(VkPhysicalDevice)
 	);
-	if (vulkan.physical_devices == NULL) {
+	if (*physical_devices_ptr == NULL) {
 		return LIBC_ERROR_BIT;
 	}
 
 	result = vkEnumeratePhysicalDevices(instance,
-	                                    &vulkan.physical_device_count,
-	                                    vulkan.physical_devices);
+	                                    physical_device_count_ptr,
+	                                    *physical_devices_ptr);
 	if (result != VK_SUCCESS) {
 		return VULKAN_ERROR_BIT | print_result(result);
 	}
 
 	printf("Physical Devices\n");
 	VkPhysicalDeviceProperties properties;
-	for (uint32_t i = 0; i != vulkan.physical_device_count; ++i) {
-		vkGetPhysicalDeviceProperties(vulkan.physical_devices[i], &properties);
+	for (uint32_t i = 0; i != *physical_device_count_ptr; ++i) {
+		vkGetPhysicalDeviceProperties((*physical_devices_ptr)[i], &properties);
 		if (i == 0) { printf("  * "); }
 		else        { printf("    "); }
 		printf("%u: %s\n", i, properties.deviceName);
@@ -1571,7 +1573,9 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = create_physical_devices(vulkan.instance);
+	err = create_physical_devices(&vulkan.physical_devices,
+	                              &vulkan.physical_device_count,
+	                              vulkan.instance);
 	if (err) {
 		goto fini;
 	}
