@@ -42,7 +42,7 @@ static VkSwapchainKHR swapchain;
 
 struct vulkan {
 	VkInstance instance;
-	VkSurfaceKHR surface_khr;
+	VkSurfaceKHR surface;
 	VkPhysicalDevice *physical_devices;
 	uint32_t physical_device_count;
 	VkDevice device;
@@ -58,7 +58,7 @@ struct vulkan {
 
 static struct vulkan vulkan = {
 	.instance = VK_NULL_HANDLE,
-	.surface_khr = VK_NULL_HANDLE,
+	.surface = VK_NULL_HANDLE,
 	.physical_devices = NULL,
 	.physical_device_count = 0,
 	.device = VK_NULL_HANDLE,
@@ -895,7 +895,7 @@ uint8_t use_device(VkDevice device)
 		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 		.pNext = NULL,
 		.flags = 0,
-		.surface = vulkan.surface_khr,
+		.surface = vulkan.surface, // TODO: surface_khr
 		.minImageCount = vulkan.min_image_count,
 		.imageFormat = vulkan.swapchain_image_format,
 		.imageColorSpace = vulkan.swapchain_image_color_space,
@@ -936,7 +936,7 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 	VkResult result;
 	result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
 		physical_device,
-		vulkan.surface_khr,
+		vulkan.surface, // TODO: surface_khr
 		&surface_capabilities_khr
 	);
 	if (result != VK_SUCCESS) {
@@ -960,7 +960,8 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 
 	VkBool32 supported;
 	result = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, 0,
-	                                              vulkan.surface_khr,
+	                                              // TODO: surface_khr
+	                                              vulkan.surface,
 	                                              &supported);
 	if (result != VK_SUCCESS) {
 		int ret = VULKAN_ERROR_BIT;
@@ -973,7 +974,8 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 
 	uint32_t surface_format_count;
 	result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
-	                                              vulkan.surface_khr,
+	                                              // TODO: surface_khr
+	                                              vulkan.surface,
 	                                              &surface_format_count,
 	                                              NULL);
 	if (result != VK_SUCCESS) {
@@ -988,7 +990,8 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 		return LIBC_ERROR_BIT;
 	}
 	result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
-	                                              vulkan.surface_khr,
+	                                              // TODO: surface_khr
+	                                              vulkan.surface,
 	                                              &surface_format_count,
 	                                              surface_formats);
 	if (result != VK_SUCCESS) {
@@ -1306,9 +1309,9 @@ static void vulkan_fini()
 		vulkan.physical_devices = NULL;
 		vulkan.physical_device_count = 0;
 	}
-	if (vulkan.surface_khr != VK_NULL_HANDLE) {
-		vkDestroySurfaceKHR(vulkan.instance, vulkan.surface_khr, NULL);
-		vulkan.surface_khr = VK_NULL_HANDLE;
+	if (vulkan.surface != VK_NULL_HANDLE) {
+		vkDestroySurfaceKHR(vulkan.instance, vulkan.surface, NULL);
+		vulkan.surface = VK_NULL_HANDLE;
 	}
 	if (vulkan.instance != VK_NULL_HANDLE) {
 		vkDestroyInstance(vulkan.instance, NULL);
@@ -1505,8 +1508,8 @@ static uint8_t create_physical_devices(VkPhysicalDevice **physical_devices_ptr,
 	return NO_ERRORS;
 }
 
-static uint8_t create_surface_khr(VkSurfaceKHR *surface_khr_ptr,
-                                  VkInstance instance)
+static uint8_t create_surface(VkSurfaceKHR *surface_ptr,
+                              VkInstance instance)
 {
 	VkWaylandSurfaceCreateInfoKHR wayland_surface_create_info_khr = {
 		.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
@@ -1519,7 +1522,7 @@ static uint8_t create_surface_khr(VkSurfaceKHR *surface_khr_ptr,
 	result = vkCreateWaylandSurfaceKHR(instance,
 	                                   &wayland_surface_create_info_khr,
 	                                   NULL,
-	                                   surface_khr_ptr);
+	                                   surface_ptr);
 	if (result != VK_SUCCESS) {
 		return VULKAN_ERROR_BIT | print_result(result);
 	}
@@ -1570,7 +1573,7 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = create_surface_khr(&vulkan.surface_khr, vulkan.instance);
+	err = create_surface(&vulkan.surface, vulkan.instance);
 	if (err) {
 		goto fini;
 	}
