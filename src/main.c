@@ -38,7 +38,6 @@
 static bool running = true;
 
 static VkQueue queue;
-static VkSwapchainKHR swapchain;
 
 struct vulkan {
 	VkInstance instance;
@@ -46,6 +45,7 @@ struct vulkan {
 	VkPhysicalDevice *physical_devices;
 	uint32_t physical_device_count;
 	VkDevice device;
+	VkSwapchainKHR swapchain;
 
 	uint32_t graphics_queue_family_index;
 	uint32_t min_image_count;
@@ -62,6 +62,7 @@ static struct vulkan vulkan = {
 	.physical_devices = NULL,
 	.physical_device_count = 0,
 	.device = VK_NULL_HANDLE,
+	.swapchain = VK_NULL_HANDLE,
 
 	.graphics_queue_family_index = 0,
 
@@ -143,7 +144,8 @@ static uint8_t draw_frame(
 {
 	VkResult result;
 	uint32_t image_index;
-	result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX,
+	// TODO: swapchain_khr
+	result = vkAcquireNextImageKHR(device, vulkan.swapchain, UINT64_MAX,
 	                               image_available_semaphore,
 	                               VK_NULL_HANDLE, &image_index);
 	if (result != VK_SUCCESS) {
@@ -179,7 +181,8 @@ static uint8_t draw_frame(
 		return ret;
 	}
 
-	VkSwapchainKHR swapchains[] = { swapchain };
+	// TODO: swapchain_khr
+	VkSwapchainKHR swapchains[] = { vulkan.swapchain };
 	VkPresentInfoKHR present_info = {
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 		.pNext = NULL,
@@ -885,51 +888,6 @@ uint8_t use_swapchain(VkDevice device, VkSwapchainKHR swapchain)
 	return ret;
 }
 
-uint8_t use_device(VkDevice device)
-{
-	uint32_t queue_family_index = vulkan.graphics_queue_family_index;
-	uint32_t queue_index = 0;
-	vkGetDeviceQueue(device, queue_family_index, queue_index, &queue);
-
-	VkSwapchainCreateInfoKHR swapchain_create_info = {
-		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-		.pNext = NULL,
-		.flags = 0,
-		.surface = vulkan.surface, // TODO: surface_khr
-		.minImageCount = vulkan.min_image_count,
-		.imageFormat = vulkan.swapchain_image_format,
-		.imageColorSpace = vulkan.swapchain_image_color_space,
-		.imageExtent = vulkan.swapchain_image_extent,
-		.imageArrayLayers = 1,
-		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
-		.queueFamilyIndexCount = 0,
-		.pQueueFamilyIndices = NULL,
-		.preTransform = vulkan.current_transform,
-		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-		.presentMode = VK_PRESENT_MODE_FIFO_KHR,
-		.clipped = VK_TRUE,
-		.oldSwapchain = VK_NULL_HANDLE,
-	};
-
-	VkResult result = vkCreateSwapchainKHR(
-		device,
-		&swapchain_create_info,
-		NULL,
-		&swapchain
-	);
-	if (result != VK_SUCCESS) {
-		int ret = VULKAN_ERROR_BIT;
-		ret |= print_result(result);
-		return ret;
-	}
-
-	int ret = use_swapchain(device, swapchain);
-
-	vkDestroySwapchainKHR(device, swapchain, NULL);
-	return ret;
-}
-
 uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 {
 	VkSurfaceCapabilitiesKHR surface_capabilities_khr;
@@ -1300,6 +1258,10 @@ static uint8_t wayland_init()
 
 static void vulkan_fini()
 {
+	if (vulkan.swapchain != VK_NULL_HANDLE) {
+		vkDestroySwapchainKHR(vulkan.device, vulkan.swapchain, NULL);
+		vulkan.swapchain = VK_NULL_HANDLE;
+	}
 	if (vulkan.device != VK_NULL_HANDLE) {
 		vkDestroyDevice(vulkan.device, NULL);
 		vulkan.device = VK_NULL_HANDLE;
@@ -1357,6 +1319,46 @@ static void wayland_fini()
 		wl_display_disconnect(wayland.display);
 		wayland.display = NULL;
 	}
+}
+
+static uint8_t create_swapchain(VkSwapchainKHR *swapchain_ptr, VkDevice device)
+{
+	uint32_t queue_family_index = vulkan.graphics_queue_family_index;
+	uint32_t queue_index = 0;
+	vkGetDeviceQueue(device, queue_family_index, queue_index, &queue);
+
+	VkSwapchainCreateInfoKHR swapchain_create_info = {
+		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+		.pNext = NULL,
+		.flags = 0,
+		.surface = vulkan.surface, // TODO: surface_khr
+		.minImageCount = vulkan.min_image_count,
+		.imageFormat = vulkan.swapchain_image_format,
+		.imageColorSpace = vulkan.swapchain_image_color_space,
+		.imageExtent = vulkan.swapchain_image_extent,
+		.imageArrayLayers = 1,
+		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+		.queueFamilyIndexCount = 0,
+		.pQueueFamilyIndices = NULL,
+		.preTransform = vulkan.current_transform,
+		.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+		.presentMode = VK_PRESENT_MODE_FIFO_KHR,
+		.clipped = VK_TRUE,
+		.oldSwapchain = VK_NULL_HANDLE,
+	};
+
+	VkResult result = vkCreateSwapchainKHR(
+		device,
+		&swapchain_create_info,
+		NULL,
+		swapchain_ptr
+	);
+	if (result != VK_SUCCESS) {
+		return VULKAN_ERROR_BIT | print_result(result);
+	}
+
+	return NO_ERRORS;
 }
 
 static uint32_t find_graphics_queue_family_index(
@@ -1590,7 +1592,12 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = use_device(vulkan.device);
+	err = create_swapchain(&vulkan.swapchain, vulkan.device);
+	if (err) {
+		goto fini;
+	}
+
+	err = use_swapchain(vulkan.device, vulkan.swapchain);
 
 fini:
 	vulkan_fini();
