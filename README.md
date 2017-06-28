@@ -7,6 +7,7 @@ A quick demo of the Vulkan API, using Wayland on Linux.
 - [x] Draw a triangle
   - [ ] Handle resizes correctly
     - [ ] Refactor to recreate swapchain
+    - [ ] Refactor all creation outside of global structure
 
 ## Compute
 
