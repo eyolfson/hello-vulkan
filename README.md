@@ -12,3 +12,9 @@ A quick demo of the Vulkan API, using Wayland on Linux.
 ## Compute
 
 - [ ] N-body simulation
+
+## Tested Platforms
+
+- [x] AMD
+- [x] Intel
+- [ ] NVIDIA
