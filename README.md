@@ -17,4 +17,4 @@ A quick demo of the Vulkan API, using Wayland on Linux.
 
 - [x] AMD
 - [x] Intel
-- [ ] NVIDIA
+- [ ] NVIDIA (not supported)
