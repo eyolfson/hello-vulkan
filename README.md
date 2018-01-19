@@ -18,3 +18,8 @@ A quick demo of the Vulkan API, using Wayland on Linux.
 - [x] AMD
 - [x] Intel
 - [ ] NVIDIA (not supported)
+
+## License
+
+All code is licensed under GPLv3. All documentation is licensed under CC BY-SA
+4.0.
