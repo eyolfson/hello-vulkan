@@ -21,5 +21,4 @@ A quick demo of the Vulkan API, using Wayland on Linux.
 
 ## License
 
-All code is licensed under GPLv3. All documentation is licensed under CC BY-SA
-4.0.
+All code is licensed under GPLv3.
