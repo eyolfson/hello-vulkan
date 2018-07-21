@@ -1103,7 +1103,6 @@ static void toplevel_configure(void *data,
 		return;
 	}
 
-	printf("toplevel_configure %d %d\n", width, height);
 	vulkan.swapchain_image_extent.width = (uint32_t) width;
 	vulkan.swapchain_image_extent.height = (uint32_t) height;
 	resize = true;
