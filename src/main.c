@@ -32,10 +32,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define WIDTH 640
-#define HEIGHT 480
+#define DEFAULT_WIDTH 640
+#define DEFAULT_HEIGHT 480
 
 static bool running = true;
+static bool resize = false;
 
 static VkQueue queue;
 
@@ -67,8 +68,8 @@ static struct vulkan vulkan = {
 	.graphics_queue_family_index = 0,
 
 	.swapchain_image_extent = {
-		.width = WIDTH,
-		.height = HEIGHT
+		.width = DEFAULT_WIDTH,
+		.height = DEFAULT_HEIGHT
 	},
 	.swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM,
 	.swapchain_image_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
@@ -233,7 +234,7 @@ static uint8_t use_command_buffers(
 	}
 
 	uint8_t ret;
-	while (running) {
+	while (running && !resize) {
 		wl_display_roundtrip(wayland.display);
 
 		ret = draw_frame(device, command_buffers,
@@ -438,8 +439,8 @@ static uint8_t use_shader_modules(
 	VkViewport viewport = {
 		.x = 0.0f,
 		.y = 0.0f,
-		.width = (float) WIDTH,
-		.height = (float) HEIGHT,
+		.width = (float) vulkan.swapchain_image_extent.width,
+		.height = (float) vulkan.swapchain_image_extent.height,
 		.minDepth = 0.0f,
 		.maxDepth = 1.0f,
 	};
@@ -903,13 +904,13 @@ uint8_t physical_device_capabilities(VkPhysicalDevice physical_device)
 		return ret;
 	}
 
-	if (WIDTH > surface_capabilities_khr.maxImageExtent.width ||
-			WIDTH < surface_capabilities_khr.minImageExtent.width) {
+	if (vulkan.swapchain_image_extent.width > surface_capabilities_khr.maxImageExtent.width ||
+	    vulkan.swapchain_image_extent.width < surface_capabilities_khr.minImageExtent.width) {
 		return APP_ERROR_BIT;
 	}
 
-	if (HEIGHT > surface_capabilities_khr.maxImageExtent.height ||
-			HEIGHT < surface_capabilities_khr.minImageExtent.height) {
+	if (vulkan.swapchain_image_extent.height > surface_capabilities_khr.maxImageExtent.height ||
+	    vulkan.swapchain_image_extent.height < surface_capabilities_khr.minImageExtent.height) {
 		return APP_ERROR_BIT;
 	}
 
@@ -1092,6 +1093,23 @@ static void toplevel_configure(void *data,
 	(void) width;
 	(void) height;
 	(void) states;
+
+	if (width <= 0 || height <= 0) {
+		return;
+	}
+
+	if ((uint32_t) width == vulkan.swapchain_image_extent.width &&
+	    (uint32_t) height == vulkan.swapchain_image_extent.height) {
+		return;
+	}
+
+	printf("toplevel_configure %d %d\n", width, height);
+	vulkan.swapchain_image_extent.width = (uint32_t) width;
+	vulkan.swapchain_image_extent.height = (uint32_t) height;
+	resize = true;
+	zxdg_surface_v6_set_window_geometry(wayland.shell_surface, 0, 0,
+	                                    vulkan.swapchain_image_extent.width,
+	                                    vulkan.swapchain_image_extent.height);
 }
 
 static void toplevel_close(void *data,
@@ -1249,19 +1267,25 @@ static uint8_t wayland_init()
 
 	zxdg_toplevel_v6_set_title(wayland.toplevel, "Hello Vulkan");
 	zxdg_toplevel_v6_set_app_id(wayland.toplevel, "io.eyl.HelloVulkan");
-	zxdg_surface_v6_set_window_geometry(wayland.shell_surface,
-	                                    0, 0, WIDTH, HEIGHT);
+	zxdg_surface_v6_set_window_geometry(wayland.shell_surface, 0, 0,
+	                                    vulkan.swapchain_image_extent.width,
+	                                    vulkan.swapchain_image_extent.height);
 	wl_surface_commit(wayland.surface);
 
 	return 0;
 }
 
-static void vulkan_fini()
+static void destroy_swapchain()
 {
 	if (vulkan.swapchain != VK_NULL_HANDLE) {
 		vkDestroySwapchainKHR(vulkan.device, vulkan.swapchain, NULL);
 		vulkan.swapchain = VK_NULL_HANDLE;
 	}
+}
+
+static void vulkan_fini()
+{
+	destroy_swapchain();
 	if (vulkan.device != VK_NULL_HANDLE) {
 		vkDestroyDevice(vulkan.device, NULL);
 		vulkan.device = VK_NULL_HANDLE;
@@ -1441,7 +1465,9 @@ static uint8_t create_device(VkDevice *device_ptr,
 			.pQueuePriorities = queue_priorities,
 		},
 	};
-	const char *const enabled_extension_names[1] = {
+	const char *const enabled_layer_names[] = {
+	};
+	const char *const enabled_extension_names[] = {
 		"VK_KHR_swapchain",
 	};
 	VkDeviceCreateInfo device_create_info = {
@@ -1450,8 +1476,8 @@ static uint8_t create_device(VkDevice *device_ptr,
 		.flags = 0,
 		.queueCreateInfoCount = ARRAY_SIZE(device_queue_create_infos),
 		.pQueueCreateInfos = device_queue_create_infos,
-		.enabledLayerCount = 0,
-		.ppEnabledLayerNames = NULL,
+		.enabledLayerCount = ARRAY_SIZE(enabled_layer_names),
+		.ppEnabledLayerNames = enabled_layer_names,
 		.enabledExtensionCount = ARRAY_SIZE(enabled_extension_names),
 		.ppEnabledExtensionNames = enabled_extension_names,
 		.pEnabledFeatures = NULL,
@@ -1592,12 +1618,18 @@ int main(int argc, char **argv)
 		goto fini;
 	}
 
-	err = create_swapchain(&vulkan.swapchain, vulkan.device);
-	if (err) {
-		goto fini;
-	}
+	do {
+		resize = false;
 
-	err = use_swapchain(vulkan.device, vulkan.swapchain);
+		err = create_swapchain(&vulkan.swapchain, vulkan.device);
+		if (err) {
+			goto fini;
+		}
+
+		err = use_swapchain(vulkan.device, vulkan.swapchain);
+
+		destroy_swapchain();
+	} while (resize);
 
 fini:
 	vulkan_fini();
