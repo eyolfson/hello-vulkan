@@ -37,7 +37,7 @@ add_custom_command(
 add_custom_command(
 	OUTPUT ${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.c
 	COMMAND wayland-scanner
-	ARGS code
+	ARGS private-code
 	     ${WAYLAND_PROTOCOLS_DATADIR}/unstable/xdg-shell/xdg-shell-unstable-v6.xml
 	     ${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.c
 )
